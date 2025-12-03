@@ -288,26 +288,32 @@
 
     /* FIRESTORE HELPERS */
     function coachDoc() {
+      if (!currentUser) throw new Error("No user for coachDoc");
       return doc(db, "coaches", currentUser.uid);
     }
 
     async function loadData() {
       const s = await getDoc(coachDoc());
       if (s.exists()) {
-        state.teamName = s.data().teamName || "";
-        state.season = s.data().season || "";
-        state.emails = s.data().emails || [];
+        const data = s.data();
+        state.teamName = data.teamName || "";
+        state.season = data.season || "";
+        state.emails = data.emails || [];
       }
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     async function saveSettingsToFirestore() {
-      await setDoc(coachDoc(), {
-        teamName: state.teamName,
-        season: state.season,
-        emails: state.emails
-      }, { merge: true });
+      await setDoc(
+        coachDoc(),
+        {
+          teamName: state.teamName,
+          season: state.season,
+          emails: state.emails
+        },
+        { merge: true }
+      );
     }
 
     async function addGameToFirestore(game) {
@@ -355,8 +361,14 @@
             <td>${g.date}</td>
             <td>${g.opponent}</td>
             <td>${g.location}</td>
-            <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-            <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+            <td>
+              <input data-id="${g.id}" data-role="home" class="inline-input"
+                     type="number" value="${g.homeScore ?? ""}">
+            </td>
+            <td>
+              <input data-id="${g.id}" data-role="away" class="inline-input"
+                     type="number" value="${g.awayScore ?? ""}">
+            </td>
             <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
             <td>${g.sent ? "Sent" : "Not sent"}</td>
           </tr>`;
@@ -389,41 +401,97 @@
     /* HANDLERS */
     async function onSettingsSubmit(e) {
       e.preventDefault();
-      state.teamName = document.getElementById("teamName").value;
-      state.season = document.getElementById("season").value;
-      state.emails = document.getElementById("emails")
+      const msg = document.getElementById("settingsMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
+      if (!currentUser) {
+        msg.textContent = "Please sign in with Google first.";
+        msg.classList.add("error");
+        return;
+      }
+
+      state.teamName = document.getElementById("teamName").value.trim();
+      state.season = document.getElementById("season").value.trim();
+      state.emails = document
+        .getElementById("emails")
         .value.split(",")
         .map(e => e.trim())
         .filter(e => e.length);
 
-      await saveSettingsToFirestore();
-      document.getElementById("settingsMessage").textContent = "Settings saved!";
+      try {
+        await saveSettingsToFirestore();
+        msg.textContent = "Settings saved!";
+        msg.classList.add("success");
+      } catch (err) {
+        console.error(err);
+        msg.textContent = "Error saving settings.";
+        msg.classList.add("error");
+      }
     }
 
     async function onAddGame(e) {
       e.preventDefault();
+      const sendMsg = document.getElementById("sendMessage");
+      sendMsg.textContent = "";
+      sendMsg.className = "message";
+
+      if (!currentUser) {
+        sendMsg.textContent = "Please sign in with Google first.";
+        sendMsg.classList.add("error");
+        return;
+      }
 
       const game = {
         date: document.getElementById("gameDate").value,
-        opponent: document.getElementById("opponent").value,
-        location: document.getElementById("location").value,
+        opponent: document.getElementById("opponent").value.trim(),
+        location: document.getElementById("location").value.trim(),
         homeScore: null,
         awayScore: null,
         sent: false
       };
 
-      const id = await addGameToFirestore(game);
-      state.games.push({ id, ...game });
-      renderTables();
-      document.getElementById("gameForm").reset();
+      if (!game.date || !game.opponent || !game.location) return;
+
+      try {
+        const id = await addGameToFirestore(game);
+        state.games.push({ id, ...game });
+        renderTables();
+        document.getElementById("gameForm").reset();
+      } catch (err) {
+        console.error(err);
+        sendMsg.textContent = "Error adding game.";
+        sendMsg.classList.add("error");
+      }
     }
 
     async function onSendScore(e) {
       const id = e.target.getAttribute("data-id");
-      const game = state.games.find(g => g.id === id);
+      const sendMsg = document.getElementById("sendMessage");
+      sendMsg.textContent = "";
+      sendMsg.className = "message";
 
-      const home = document.querySelector(`input[data-id="${id}"][data-role="home"]`).value;
-      const away = document.querySelector(`input[data-id="${id}"][data-role="away"]`).value;
+      if (!currentUser) {
+        sendMsg.textContent = "Please sign in with Google first.";
+        sendMsg.classList.add("error");
+        return;
+      }
+
+      const game = state.games.find(g => g.id === id);
+      if (!game) return;
+
+      const home = document.querySelector(
+        `input[data-id="${id}"][data-role="home"]`
+      ).value;
+      const away = document.querySelector(
+        `input[data-id="${id}"][data-role="away"]`
+      ).value;
+
+      if (home === "" || away === "") {
+        sendMsg.textContent = "Enter both scores before sending.";
+        sendMsg.classList.add("error");
+        return;
+      }
 
       game.homeScore = Number(home);
       game.awayScore = Number(away);
@@ -433,40 +501,96 @@
         game.sent = true;
         await updateGameFirestore(game);
         renderTables();
-        document.getElementById("sendMessage").textContent = "Score email sent!";
+        sendMsg.textContent = "Score email sent!";
+        sendMsg.classList.add("success");
       } catch (err) {
-        document.getElementById("sendMessage").textContent =
-          "Email Error: " + (err.text || err.message);
+        console.error("Email error:", err);
+        sendMsg.textContent =
+          "Email Error: " + (err?.text || err?.message || "Unknown error");
+        sendMsg.classList.add("error");
       }
     }
 
-    /* AUTH */
-    document.getElementById("loginBtn").onclick = () => signInWithPopup(auth, provider);
-    document.getElementById("logoutBtn").onclick = () => signOut(auth);
+    /* AUTH HANDLERS */
+    async function handleLogin() {
+      const authMsg = document.getElementById("authMessage");
+      authMsg.textContent = "";
+      authMsg.className = "message";
 
+      try {
+        await signInWithPopup(auth, provider);
+        // onAuthStateChanged will fire after this
+      } catch (err) {
+        console.error("Login error:", err);
+        authMsg.textContent =
+          "Login failed: " + (err?.message || err?.code || "Unknown error");
+        authMsg.classList.add("error");
+      }
+    }
+
+    async function handleLogout() {
+      const authMsg = document.getElementById("authMessage");
+      authMsg.textContent = "";
+      authMsg.className = "message";
+
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Logout error:", err);
+        authMsg.textContent =
+          "Logout failed: " + (err?.message || err?.code || "Unknown error");
+        authMsg.classList.add("error");
+      }
+    }
+
+    /* AUTH STATE LISTENER */
     onAuthStateChanged(auth, async user => {
+      const authStatus = document.getElementById("authStatus");
+      const authMsg = document.getElementById("authMessage");
+
+      authMsg.textContent = "";
+      authMsg.className = "message";
+
       if (user) {
         currentUser = user;
-        document.getElementById("authStatus").textContent = `Signed in as ${user.email}`;
+        authStatus.textContent = `Signed in as ${user.email}`;
         document.getElementById("loginBtn").style.display = "none";
         document.getElementById("logoutBtn").style.display = "inline-block";
 
-        await loadData();
-        renderSettings();
-        renderTables();
+        try {
+          await loadData();
+          renderSettings();
+          renderTables();
+        } catch (err) {
+          console.error("Load data error:", err);
+          authMsg.textContent = "Error loading your data.";
+          authMsg.classList.add("error");
+        }
       } else {
         currentUser = null;
-        document.getElementById("authStatus").textContent = "Not signed in";
+        authStatus.textContent = "Not signed in";
         document.getElementById("loginBtn").style.display = "inline-block";
         document.getElementById("logoutBtn").style.display = "none";
+        state = { teamName: "", season: "", emails: [], games: [] };
+        renderSettings();
+        renderTables();
       }
     });
 
-    document.getElementById("settingsForm").addEventListener("submit", onSettingsSubmit);
-    document.getElementById("gameForm").addEventListener("submit", onAddGame);
+    /* WIRE UP EVENTS */
+    document.getElementById("loginBtn").addEventListener("click", handleLogin);
+    document.getElementById("logoutBtn").addEventListener("click", handleLogout);
+    document
+      .getElementById("settingsForm")
+      .addEventListener("submit", onSettingsSubmit);
+    document
+      .getElementById("gameForm")
+      .addEventListener("submit", onAddGame);
   </script>
 </body>
 </html>
+
+
 
 
 
