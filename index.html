@@ -210,7 +210,7 @@
 
       <div class="toolbar">
         <button type="button" id="resetGamesBtn" class="secondary">
-          Reset Games (Season / Team)
+          Reset Games (by Filter)
         </button>
         <button type="button" id="exportCsvBtn" class="blue">
           Export to CSV (Google Sheets)
@@ -537,7 +537,7 @@
       }
     }
 
-    /* RESET GAMES */
+    /* RESET GAMES – fixed: uses filter only, no season check */
     async function onResetGames() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -548,34 +548,35 @@
         sendMsg.className = "message error";
         return;
       }
-      if (!state.season) {
-        sendMsg.textContent = "Set a season in Season Setup first.";
-        sendMsg.className = "message error";
-        return;
-      }
 
       const select = document.getElementById("teamFilter");
       const filterVal = select ? select.value : "all";
 
       const confirmText =
         filterVal === "all"
-          ? `Delete ALL games for season "${state.season}" (all teams)?`
-          : `Delete ALL games for team "${filterVal}" in season "${state.season}"?`;
+          ? "Delete ALL games for this account (all teams)?"
+          : `Delete ALL games for team \"${filterVal}\"?`;
 
       if (!window.confirm(confirmText)) return;
 
       const toDelete = state.games.filter(g =>
-        (g.season || "") === state.season &&
-        (filterVal === "all" || g.teamLevel === filterVal)
+        filterVal === "all" || g.teamLevel === filterVal
       );
 
+      if (!toDelete.length) {
+        sendMsg.textContent = "No games found to reset for that selection.";
+        sendMsg.className = "message error";
+        return;
+      }
+
       try {
+        const idsToDelete = new Set(toDelete.map(g => g.id));
         for (const g of toDelete) {
           await deleteGameFromFirestore(g.id);
         }
-        state.games = state.games.filter(g => !toDelete.includes(g));
+        state.games = state.games.filter(g => !idsToDelete.has(g.id));
         renderTables();
-        sendMsg.textContent = "Games reset for selected season/team.";
+        sendMsg.textContent = "Games reset for selected filter.";
         sendMsg.className = "message success";
       } catch (err) {
         console.error(err);
@@ -712,3 +713,5 @@
   </script>
 </body>
 </html>
+
+
