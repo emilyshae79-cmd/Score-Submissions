@@ -8,12 +8,11 @@
   <!-- EmailJS – MUST load before Firebase script -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
-    (function(){
-        emailjs.init("js0OsdaHtUNCJw2vP"); /* YOUR PUBLIC KEY */
+    (function () {
+      emailjs.init("js0OsdaHtUNCJw2vP"); /* YOUR PUBLIC KEY */
     })();
   </script>
 
-  <!-- Basic styling -->
   <style>
     * {
       box-sizing: border-box;
@@ -47,7 +46,9 @@
     input[type="text"],
     input[type="date"],
     input[type="number"],
-    textarea {
+    input[type="password"],
+    textarea,
+    select {
       width: 100%;
       padding: 0.45rem;
       border-radius: 4px;
@@ -103,6 +104,7 @@
     .auth-row .buttons {
       display: flex;
       gap: 0.5rem;
+      flex-wrap: wrap;
     }
     .toolbar {
       display: flex;
@@ -112,14 +114,23 @@
       margin-top: 0.5rem;
       margin-bottom: 0.5rem;
     }
-    .toolbar label {
-      margin-top: 0;
-      font-weight: 500;
-    }
     .toolbar select {
-      padding: 0.3rem 0.4rem;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+      width: auto;
+      min-width: 160px;
+    }
+    .small {
+      font-size: 0.85rem;
+      color: #555;
+    }
+    .team-view-label {
+      font-size: 0.85rem;
+      color: #444;
+      margin-left: auto;
+    }
+    .team-header-row {
+      background: #ffe0e0;
+      font-weight: 700;
+      text-align: left;
     }
   </style>
 </head>
@@ -136,12 +147,29 @@
           <div id="authStatus" class="small">Not signed in</div>
         </div>
         <div class="buttons">
-          <button id="loginBtn" type="button">Sign in with Google</button>
+          <button id="googleLoginBtn" type="button">Sign in with Google</button>
+          <button id="appleLoginBtn" type="button" class="secondary">Sign in with Apple</button>
+          <button id="emailToggleBtn" type="button" class="secondary">Email Login</button>
           <button id="logoutBtn" type="button" style="display:none; background:#555;">
             Log out
           </button>
         </div>
       </div>
+
+      <!-- Email auth (login + simple register) -->
+      <div id="emailAuthSection" style="display:none; margin-top:0.75rem;">
+        <label for="emailInput">Email</label>
+        <input id="emailInput" type="text" autocomplete="email" />
+
+        <label for="passwordInput">Password</label>
+        <input id="passwordInput" type="password" autocomplete="current-password" />
+
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+          <button id="emailLoginBtn" type="button" class="blue">Sign In with Email</button>
+          <button id="emailRegisterBtn" type="button">Register Account</button>
+        </div>
+      </div>
+
       <div id="authMessage" class="message"></div>
     </div>
 
@@ -163,7 +191,7 @@
       </form>
     </div>
 
-    <!-- ADD GAME -->
+    <!-- ADD GAME / SCHEDULE -->
     <div class="card">
       <h2>2. Add Games to Schedule</h2>
 
@@ -185,10 +213,11 @@
 
       <h3>Schedule</h3>
       <div class="toolbar">
-        <label for="teamFilter">Filter by Team:</label>
+        <label for="teamFilter">Current Team View:</label>
         <select id="teamFilter">
           <option value="all">All teams</option>
         </select>
+        <span id="teamViewLabel" class="team-view-label"></span>
       </div>
       <table>
         <thead>
@@ -210,10 +239,10 @@
 
       <div class="toolbar">
         <button type="button" id="resetGamesBtn" class="secondary">
-          Reset Games (by Filter)
+          Reset Games (Current View)
         </button>
         <button type="button" id="exportCsvBtn" class="blue">
-          Export to CSV (Google Sheets)
+          Export Current View to CSV
         </button>
       </div>
 
@@ -243,9 +272,12 @@
     import {
       getAuth,
       GoogleAuthProvider,
+      OAuthProvider,
       signInWithPopup,
       signOut,
-      onAuthStateChanged
+      onAuthStateChanged,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       getFirestore,
@@ -273,7 +305,9 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const provider = new GoogleAuthProvider();
+
+    const googleProvider = new GoogleAuthProvider();
+    const appleProvider = new OAuthProvider("apple.com");
 
     let currentUser = null;
     let state = { teamName: "", season: "", emails: [], games: [] };
@@ -288,20 +322,24 @@
       const s = await getDoc(coachDoc());
       if (s.exists()) {
         const data = s.data();
-        state.teamName = data.teamName;
-        state.season = data.season;
-        state.emails = data.emails;
+        state.teamName = data.teamName || "";
+        state.season = data.season || "";
+        state.emails = data.emails || [];
       }
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     async function saveSettingsToFirestore() {
-      await setDoc(coachDoc(), {
-        teamName: state.teamName,
-        season: state.season,
-        emails: state.emails
-      }, { merge: true });
+      await setDoc(
+        coachDoc(),
+        {
+          teamName: state.teamName,
+          season: state.season,
+          emails: state.emails
+        },
+        { merge: true }
+      );
     }
 
     async function addGameToFirestore(game) {
@@ -326,6 +364,7 @@
 
     function renderTeamFilter() {
       const select = document.getElementById("teamFilter");
+      const label = document.getElementById("teamViewLabel");
       if (!select) return;
 
       const currentValue = select.value || "all";
@@ -343,6 +382,13 @@
         optionsHtml += `<option value="${level}" ${selectedAttr}>${level}</option>`;
       }
       select.innerHTML = optionsHtml;
+
+      const val = select.value;
+      if (val === "all") {
+        label.textContent = "(Showing all teams)";
+      } else {
+        label.textContent = `(Showing only: ${val})`;
+      }
     }
 
     function getFilteredGames() {
@@ -367,34 +413,101 @@
       score.innerHTML = "";
 
       const games = getFilteredGames();
+      const select = document.getElementById("teamFilter");
+      const filterVal = select ? select.value : "all";
 
       if (games.length === 0) {
-        sched.innerHTML = '<tr><td colspan="5">No games added.</td></tr>';
-        score.innerHTML = '<tr><td colspan="8">No games added.</td></tr>';
+        sched.innerHTML = '<tr><td colspan="5">No games added for this view.</td></tr>';
+        score.innerHTML = '<tr><td colspan="8">No games added for this view.</td></tr>';
         return;
       }
 
-      for (const g of games) {
+      if (filterVal === "all") {
+        const grouped = {};
+
+        for (const g of games) {
+          const key = g.teamLevel || "No Team";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(g);
+        }
+
+        const teamNames = Object.keys(grouped).sort();
+
+        for (const teamName of teamNames) {
+          const teamGames = grouped[teamName];
+
+          sched.innerHTML += `
+            <tr class="team-header-row">
+              <td colspan="5">Team: ${teamName}</td>
+            </tr>
+          `;
+
+          score.innerHTML += `
+            <tr class="team-header-row">
+              <td colspan="8">Team: ${teamName}</td>
+            </tr>
+          `;
+
+          for (const g of teamGames) {
+            sched.innerHTML += `
+              <tr>
+                <td>${g.date || ""}</td>
+                <td>${g.teamLevel || ""}</td>
+                <td>${g.opponent || ""}</td>
+                <td>${g.location || ""}</td>
+                <td>${g.sent ? "Score emailed" : "Pending"}</td>
+              </tr>`;
+
+            score.innerHTML += `
+              <tr>
+                <td>${g.date || ""}</td>
+                <td>${g.teamLevel || ""}</td>
+                <td>${g.opponent || ""}</td>
+                <td>${g.location || ""}</td>
+                <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+                <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+                <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+                <td>${g.sent ? "Sent" : "Not sent"}</td>
+              </tr>`;
+          }
+        }
+      } else {
+        const headerLabel = `Team: ${filterVal}`;
+
         sched.innerHTML += `
-          <tr>
-            <td>${g.date || ""}</td>
-            <td>${g.teamLevel || ""}</td>
-            <td>${g.opponent || ""}</td>
-            <td>${g.location || ""}</td>
-            <td>${g.sent ? "Score emailed" : "Pending"}</td>
-          </tr>`;
+          <tr class="team-header-row">
+            <td colspan="5">${headerLabel}</td>
+          </tr>
+        `;
 
         score.innerHTML += `
-          <tr>
-            <td>${g.date || ""}</td>
-            <td>${g.teamLevel || ""}</td>
-            <td>${g.opponent || ""}</td>
-            <td>${g.location || ""}</td>
-            <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-            <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
-            <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
-            <td>${g.sent ? "Sent" : "Not sent"}</td>
-          </tr>`;
+          <tr class="team-header-row">
+            <td colspan="8">${headerLabel}</td>
+          </tr>
+        `;
+
+        for (const g of games) {
+          sched.innerHTML += `
+            <tr>
+              <td>${g.date || ""}</td>
+              <td>${g.teamLevel || ""}</td>
+              <td>${g.opponent || ""}</td>
+              <td>${g.location || ""}</td>
+              <td>${g.sent ? "Score emailed" : "Pending"}</td>
+            </tr>`;
+
+          score.innerHTML += `
+            <tr>
+              <td>${g.date || ""}</td>
+              <td>${g.teamLevel || ""}</td>
+              <td>${g.opponent || ""}</td>
+              <td>${g.location || ""}</td>
+              <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+              <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+              <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+              <td>${g.sent ? "Sent" : "Not sent"}</td>
+            </tr>`;
+        }
       }
 
       document.querySelectorAll(".sendBtn").forEach(btn =>
@@ -402,7 +515,7 @@
       );
     }
 
-    /* SEND EMAIL */
+    /* EMAIL SEND */
     function sendScoreEmail(game) {
       const teamLabel = game.teamLevel
         ? `${state.teamName} ${game.teamLevel}`
@@ -521,8 +634,6 @@
       game.homeScore = Number(home);
       game.awayScore = Number(away);
 
-      console.log("Scores being sent:", game.homeScore, game.awayScore);
-
       try {
         await sendScoreEmail(game);
         game.sent = true;
@@ -537,7 +648,7 @@
       }
     }
 
-    /* RESET GAMES – fixed: uses filter only, no season check */
+    /* RESET GAMES – uses current filter/view */
     async function onResetGames() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -576,7 +687,7 @@
         }
         state.games = state.games.filter(g => !idsToDelete.has(g.id));
         renderTables();
-        sendMsg.textContent = "Games reset for selected filter.";
+        sendMsg.textContent = "Games reset for current view.";
         sendMsg.className = "message success";
       } catch (err) {
         console.error(err);
@@ -585,7 +696,7 @@
       }
     }
 
-    /* EXPORT CSV */
+    /* EXPORT CSV – only exports current view/filter */
     function onExportCsv() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -593,7 +704,7 @@
 
       const games = getFilteredGames();
       if (!games.length) {
-        sendMsg.textContent = "No games to export.";
+        sendMsg.textContent = "No games to export for this view.";
         sendMsg.className = "message error";
         return;
       }
@@ -632,26 +743,102 @@
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const filterVal = document.getElementById("teamFilter").value;
+      const safeFilter =
+        filterVal === "all"
+          ? "all_teams"
+          : (filterVal || "team").replace(/\s+/g, "_");
+
       a.href = url;
-      a.download = "game_scores.csv";
+      a.download = `game_scores_${safeFilter}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      sendMsg.textContent = "CSV exported. Open it in Google Sheets.";
+      sendMsg.textContent = "CSV exported for current view. Open it in Google Sheets.";
       sendMsg.className = "message success";
     }
 
-    /* AUTH */
-    async function handleLogin() {
+    /* AUTH HANDLERS */
+    async function handleGoogleLogin() {
       const msg = document.getElementById("authMessage");
       msg.textContent = "";
+      msg.className = "message";
 
       try {
-        await signInWithPopup(auth, provider);
+        await signInWithPopup(auth, googleProvider);
       } catch (err) {
-        msg.textContent = "Login failed: " + err.message;
+        msg.textContent = "Google login failed: " + err.message;
+        msg.className = "message error";
+      }
+    }
+
+    async function handleAppleLogin() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
+      try {
+        await signInWithPopup(auth, appleProvider);
+      } catch (err) {
+        msg.textContent = "Apple login failed: " + err.message;
+        msg.className = "message error";
+      }
+    }
+
+    function toggleEmailAuthSection() {
+      const section = document.getElementById("emailAuthSection");
+      if (!section) return;
+      if (section.style.display === "none" || section.style.display === "") {
+        section.style.display = "block";
+      } else {
+        section.style.display = "none";
+      }
+    }
+
+    async function handleEmailRegister() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
+      const email = document.getElementById("emailInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+
+      if (!email || !password) {
+        msg.textContent = "Enter email and password to register.";
+        msg.className = "message error";
+        return;
+      }
+
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        msg.textContent = "Account created and signed in.";
+        msg.className = "message success";
+      } catch (err) {
+        msg.textContent = "Registration failed: " + err.message;
+        msg.className = "message error";
+      }
+    }
+
+    async function handleEmailLogin() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
+      const email = document.getElementById("emailInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+
+      if (!email || !password) {
+        msg.textContent = "Enter email and password to sign in.";
+        msg.className = "message error";
+        return;
+      }
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        msg.textContent = "Email sign-in failed: " + err.message;
         msg.className = "message error";
       }
     }
@@ -659,6 +846,7 @@
     async function handleLogout() {
       const msg = document.getElementById("authMessage");
       msg.textContent = "";
+      msg.className = "message";
 
       try {
         await signOut(auth);
@@ -674,11 +862,21 @@
       msg.textContent = "";
       msg.className = "message";
 
+      const googleBtn = document.getElementById("googleLoginBtn");
+      const appleBtn = document.getElementById("appleLoginBtn");
+      const emailToggleBtn = document.getElementById("emailToggleBtn");
+      const emailSection = document.getElementById("emailAuthSection");
+      const logoutBtn = document.getElementById("logoutBtn");
+
       if (user) {
         currentUser = user;
-        status.textContent = `Signed in as ${user.email}`;
-        document.getElementById("loginBtn").style.display = "none";
-        document.getElementById("logoutBtn").style.display = "inline-block";
+        status.textContent = `Signed in as ${user.email || "Account"}`;
+
+        if (googleBtn) googleBtn.style.display = "none";
+        if (appleBtn) appleBtn.style.display = "none";
+        if (emailToggleBtn) emailToggleBtn.style.display = "none";
+        if (emailSection) emailSection.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
 
         try {
           await loadData();
@@ -689,12 +887,15 @@
           msg.textContent = "Error loading your data.";
           msg.className = "message error";
         }
-
       } else {
         currentUser = null;
         status.textContent = "Not signed in";
-        document.getElementById("loginBtn").style.display = "inline-block";
-        document.getElementById("logoutBtn").style.display = "none";
+
+        if (googleBtn) googleBtn.style.display = "inline-block";
+        if (appleBtn) appleBtn.style.display = "inline-block";
+        if (emailToggleBtn) emailToggleBtn.style.display = "inline-block";
+        if (emailSection) emailSection.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "none";
 
         state = { teamName: "", season: "", emails: [], games: [] };
         renderSettings();
@@ -703,8 +904,13 @@
     });
 
     /* EVENTS */
-    document.getElementById("loginBtn").addEventListener("click", handleLogin);
+    document.getElementById("googleLoginBtn").addEventListener("click", handleGoogleLogin);
+    document.getElementById("appleLoginBtn").addEventListener("click", handleAppleLogin);
+    document.getElementById("emailToggleBtn").addEventListener("click", toggleEmailAuthSection);
+    document.getElementById("emailLoginBtn").addEventListener("click", handleEmailLogin);
+    document.getElementById("emailRegisterBtn").addEventListener("click", handleEmailRegister);
     document.getElementById("logoutBtn").addEventListener("click", handleLogout);
+
     document.getElementById("settingsForm").addEventListener("submit", onSettingsSubmit);
     document.getElementById("gameForm").addEventListener("submit", onAddGame);
     document.getElementById("teamFilter").addEventListener("change", renderTables);
@@ -713,5 +919,3 @@
   </script>
 </body>
 </html>
-
-
