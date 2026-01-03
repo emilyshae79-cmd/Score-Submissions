@@ -26,6 +26,7 @@
     button { margin-top: 0.75rem; padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; background: #e53935; color: #fff; }
     button.secondary { background: #757575; }
     button.blue { background: #1565c0; }
+    button.linkish { background: transparent; color: #1565c0; padding: 0.25rem 0; margin-top: 0.25rem; text-decoration: underline; }
     table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
     th, td { border: 1px solid #ddd; padding: 0.35rem 0.4rem; }
     th { background: #f0f0f0; }
@@ -33,13 +34,14 @@
     .message { margin-top: 0.5rem; font-size: 0.85rem; }
     .success { color: #2e7d32; }
     .error { color: #c62828; }
+    .small { font-size: 0.85rem; color: #555; }
     .auth-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
     .auth-row .buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
     .toolbar select { width: auto; min-width: 160px; }
-    .small { font-size: 0.85rem; color: #555; }
     .team-view-label { font-size: 0.85rem; color: #444; margin-left: auto; }
     .team-header-row { background: #ffe0e0; font-weight: 700; text-align: left; }
+    .hr { height: 1px; background: #eee; margin: 0.75rem 0; }
   </style>
 </head>
 
@@ -58,14 +60,15 @@
           <button id="googleLoginBtn" type="button">Sign in with Google</button>
           <button id="appleLoginBtn" type="button" class="secondary">Sign in with Apple</button>
           <button id="emailToggleBtn" type="button" class="secondary">Email Login</button>
-          <button id="logoutBtn" type="button" style="display:none; background:#555;">
-            Log out
-          </button>
+          <button id="logoutBtn" type="button" style="display:none; background:#555;">Log out</button>
         </div>
       </div>
 
       <!-- Email auth (login + simple register) -->
       <div id="emailAuthSection" style="display:none; margin-top:0.75rem;">
+        <div class="small">If you already have an account, use “Sign In with Email”.</div>
+        <div class="hr"></div>
+
         <label for="emailInput">Email</label>
         <input id="emailInput" type="text" autocomplete="email" />
 
@@ -76,6 +79,9 @@
           <button id="emailLoginBtn" type="button" class="blue">Sign In with Email</button>
           <button id="emailRegisterBtn" type="button">Register Account</button>
         </div>
+
+        <!-- Forgot password -->
+        <button id="forgotPasswordBtn" type="button" class="linkish">Forgot password?</button>
       </div>
 
       <div id="authMessage" class="message"></div>
@@ -146,12 +152,8 @@
       <h2>3. Enter Scores & Send Emails</h2>
 
       <div class="toolbar">
-        <button type="button" id="resetGamesBtn" class="secondary">
-          Reset Games (Current View)
-        </button>
-        <button type="button" id="exportCsvBtn" class="blue">
-          Export Current View to CSV
-        </button>
+        <button type="button" id="resetGamesBtn" class="secondary">Reset Games (Current View)</button>
+        <button type="button" id="exportCsvBtn" class="blue">Export Current View to CSV</button>
       </div>
 
       <table>
@@ -187,7 +189,8 @@
       signOut,
       onAuthStateChanged,
       createUserWithEmailAndPassword,
-      signInWithEmailAndPassword
+      signInWithEmailAndPassword,
+      sendPasswordResetEmail
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       getFirestore,
@@ -233,9 +236,16 @@
     function showAuthError(err, prefix) {
       console.error(prefix, err);
       const msg = document.getElementById("authMessage");
-      const detail = `${prefix}: Firebase Error (${err?.code || "unknown"}). ${err?.message || ""}`.trim();
-      msg.textContent = detail;
+      const code = err?.code || "unknown";
+      const text = err?.message || "";
+      msg.textContent = `${prefix}: Firebase Error (${code}). ${text}`.trim();
       msg.className = "message error";
+    }
+
+    function showAuthSuccess(text) {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = text;
+      msg.className = "message success";
     }
 
     /* IMPORTANT: handle redirect return when the page reloads after OAuth */
@@ -243,7 +253,6 @@
       try {
         await getRedirectResult(auth);
       } catch (err) {
-        // If the redirect flow fails, show a helpful error
         if (err) showAuthError(err, "Login redirect failed");
       }
     })();
@@ -267,11 +276,7 @@
     }
 
     async function saveSettingsToFirestore() {
-      await setDoc(
-        coachDoc(),
-        { teamName: state.teamName, season: state.season, emails: state.emails },
-        { merge: true }
-      );
+      await setDoc(coachDoc(), { teamName: state.teamName, season: state.season, emails: state.emails }, { merge: true });
     }
 
     async function addGameToFirestore(game) {
@@ -318,7 +323,6 @@
     function getFilteredGames() {
       const select = document.getElementById("teamFilter");
       const filterVal = select ? select.value : "all";
-
       const sorted = [...state.games].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       if (filterVal === "all") return sorted;
       return sorted.filter(g => g.teamLevel === filterVal);
@@ -375,10 +379,8 @@
 
         for (const teamName of teamNames) {
           const teamGames = grouped[teamName];
-
           sched.innerHTML += `<tr class="team-header-row"><td colspan="5">Team: ${teamName}</td></tr>`;
           score.innerHTML += `<tr class="team-header-row"><td colspan="8">Team: ${teamName}</td></tr>`;
-
           for (const g of teamGames) renderRow(g);
         }
       } else {
@@ -521,7 +523,6 @@
       }
     }
 
-    /* RESET GAMES – uses current filter/view */
     async function onResetGames() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -566,7 +567,6 @@
       }
     }
 
-    /* EXPORT CSV – only exports current view/filter */
     function onExportCsv() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -616,7 +616,7 @@
       sendMsg.className = "message success";
     }
 
-    /* AUTH HANDLERS (FIXED: redirect on iPad/iOS; popup on desktop) */
+    /* AUTH HANDLERS (redirect on iPad/iOS; popup on desktop) */
     async function handleGoogleLogin() {
       const msg = document.getElementById("authMessage");
       msg.textContent = "";
@@ -664,16 +664,26 @@
       const password = document.getElementById("passwordInput").value;
 
       if (!email || !password) {
-        msg.textContent = "Enter email and password to register.";
+        msg.textContent = "Please enter an email and password.";
         msg.className = "message error";
         return;
       }
 
       try {
         await createUserWithEmailAndPassword(auth, email, password);
-        msg.textContent = "Account created and signed in.";
-        msg.className = "message success";
+        showAuthSuccess("Account created and signed in.");
       } catch (err) {
+        // Clear message if account already exists (and attempt sign-in)
+        if (err?.code === "auth/email-already-in-use") {
+          try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showAuthSuccess("This email already has an account. Signed in successfully.");
+          } catch {
+            msg.textContent = "This email already has an account. Please use “Sign In with Email” and enter the correct password.";
+            msg.className = "message error";
+          }
+          return;
+        }
         showAuthError(err, "Registration failed");
       }
     }
@@ -694,8 +704,29 @@
 
       try {
         await signInWithEmailAndPassword(auth, email, password);
+        showAuthSuccess("Signed in successfully.");
       } catch (err) {
         showAuthError(err, "Email sign-in failed");
+      }
+    }
+
+    async function handleForgotPassword() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
+      const email = document.getElementById("emailInput").value.trim();
+      if (!email) {
+        msg.textContent = "Enter your email above, then tap “Forgot password?”";
+        msg.className = "message error";
+        return;
+      }
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showAuthSuccess("Password reset email sent. Check your inbox (and spam/junk).");
+      } catch (err) {
+        showAuthError(err, "Password reset failed");
       }
     }
 
@@ -764,6 +795,7 @@
     document.getElementById("emailToggleBtn").addEventListener("click", toggleEmailAuthSection);
     document.getElementById("emailLoginBtn").addEventListener("click", handleEmailLogin);
     document.getElementById("emailRegisterBtn").addEventListener("click", handleEmailRegister);
+    document.getElementById("forgotPasswordBtn").addEventListener("click", handleForgotPassword);
     document.getElementById("logoutBtn").addEventListener("click", handleLogout);
 
     document.getElementById("settingsForm").addEventListener("submit", onSettingsSubmit);
@@ -774,4 +806,6 @@
   </script>
 </body>
 </html>
+
+
 
