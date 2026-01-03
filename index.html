@@ -14,124 +14,32 @@
   </script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, sans-serif;
+    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+    body { margin: 0; padding: 1rem; background: #f5f5f5; color: #222; }
+    h1, h2, h3 { margin-top: 0; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); }
+    label { display: block; font-weight: 600; margin-top: 0.5rem; }
+    input[type="text"], input[type="date"], input[type="number"], input[type="password"], textarea, select {
+      width: 100%; padding: 0.45rem; border-radius: 4px; border: 1px solid #ccc; margin-top: 0.25rem;
     }
-    body {
-      margin: 0;
-      padding: 1rem;
-      background: #f5f5f5;
-      color: #222;
-    }
-    h1, h2, h3 {
-      margin-top: 0;
-    }
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-    .card {
-      background: #fff;
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
-    }
-    label {
-      display: block;
-      font-weight: 600;
-      margin-top: 0.5rem;
-    }
-    input[type="text"],
-    input[type="date"],
-    input[type="number"],
-    input[type="password"],
-    textarea,
-    select {
-      width: 100%;
-      padding: 0.45rem;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      margin-top: 0.25rem;
-    }
-    button {
-      margin-top: 0.75rem;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-      background: #e53935;
-      color: #fff;
-    }
-    button.secondary {
-      background: #757575;
-    }
-    button.blue {
-      background: #1565c0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.75rem;
-      font-size: 0.9rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 0.35rem 0.4rem;
-    }
-    th {
-      background: #f0f0f0;
-    }
-    .inline-input {
-      width: 70px;
-    }
-    .message {
-      margin-top: 0.5rem;
-      font-size: 0.85rem;
-    }
+    button { margin-top: 0.75rem; padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; background: #e53935; color: #fff; }
+    button.secondary { background: #757575; }
+    button.blue { background: #1565c0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
+    th, td { border: 1px solid #ddd; padding: 0.35rem 0.4rem; }
+    th { background: #f0f0f0; }
+    .inline-input { width: 70px; }
+    .message { margin-top: 0.5rem; font-size: 0.85rem; }
     .success { color: #2e7d32; }
     .error { color: #c62828; }
-
-    .auth-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    .auth-row .buttons {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .toolbar select {
-      width: auto;
-      min-width: 160px;
-    }
-    .small {
-      font-size: 0.85rem;
-      color: #555;
-    }
-    .team-view-label {
-      font-size: 0.85rem;
-      color: #444;
-      margin-left: auto;
-    }
-    .team-header-row {
-      background: #ffe0e0;
-      font-weight: 700;
-      text-align: left;
-    }
+    .auth-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .auth-row .buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    .toolbar select { width: auto; min-width: 160px; }
+    .small { font-size: 0.85rem; color: #555; }
+    .team-view-label { font-size: 0.85rem; color: #444; margin-left: auto; }
+    .team-header-row { background: #ffe0e0; font-weight: 700; text-align: left; }
   </style>
 </head>
 
@@ -274,6 +182,8 @@
       GoogleAuthProvider,
       OAuthProvider,
       signInWithPopup,
+      signInWithRedirect,
+      getRedirectResult,
       signOut,
       onAuthStateChanged,
       createUserWithEmailAndPassword,
@@ -308,9 +218,35 @@
 
     const googleProvider = new GoogleAuthProvider();
     const appleProvider = new OAuthProvider("apple.com");
+    appleProvider.addScope("email");
+    appleProvider.addScope("name");
 
     let currentUser = null;
     let state = { teamName: "", season: "", emails: [], games: [] };
+
+    /* iPad/iOS detection (iPadOS can identify as Mac) */
+    function isIOSLike() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+
+    function showAuthError(err, prefix) {
+      console.error(prefix, err);
+      const msg = document.getElementById("authMessage");
+      const detail = `${prefix}: Firebase Error (${err?.code || "unknown"}). ${err?.message || ""}`.trim();
+      msg.textContent = detail;
+      msg.className = "message error";
+    }
+
+    /* IMPORTANT: handle redirect return when the page reloads after OAuth */
+    (async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (err) {
+        // If the redirect flow fails, show a helpful error
+        if (err) showAuthError(err, "Login redirect failed");
+      }
+    })();
 
     /* FIRESTORE HELPERS */
     function coachDoc() {
@@ -333,11 +269,7 @@
     async function saveSettingsToFirestore() {
       await setDoc(
         coachDoc(),
-        {
-          teamName: state.teamName,
-          season: state.season,
-          emails: state.emails
-        },
+        { teamName: state.teamName, season: state.season, emails: state.emails },
         { merge: true }
       );
     }
@@ -347,8 +279,10 @@
       return ref.id;
     }
 
+    /* FIX: don't write `id` field back into the document */
     async function updateGameFirestore(game) {
-      await updateDoc(doc(coachDoc(), "games", game.id), game);
+      const { id, ...data } = game;
+      await updateDoc(doc(coachDoc(), "games", id), data);
     }
 
     async function deleteGameFromFirestore(gameId) {
@@ -368,13 +302,7 @@
       if (!select) return;
 
       const currentValue = select.value || "all";
-      const levels = Array.from(
-        new Set(
-          state.games
-            .map(g => g.teamLevel)
-            .filter(Boolean)
-        )
-      );
+      const levels = Array.from(new Set(state.games.map(g => g.teamLevel).filter(Boolean)));
 
       let optionsHtml = '<option value="all">All teams</option>';
       for (const level of levels) {
@@ -384,21 +312,14 @@
       select.innerHTML = optionsHtml;
 
       const val = select.value;
-      if (val === "all") {
-        label.textContent = "(Showing all teams)";
-      } else {
-        label.textContent = `(Showing only: ${val})`;
-      }
+      label.textContent = val === "all" ? "(Showing all teams)" : `(Showing only: ${val})`;
     }
 
     function getFilteredGames() {
       const select = document.getElementById("teamFilter");
       const filterVal = select ? select.value : "all";
 
-      const sorted = [...state.games].sort((a, b) =>
-        (a.date || "").localeCompare(b.date || "")
-      );
-
+      const sorted = [...state.games].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       if (filterVal === "all") return sorted;
       return sorted.filter(g => g.teamLevel === filterVal);
     }
@@ -408,7 +329,6 @@
 
       const sched = document.getElementById("scheduleTableBody");
       const score = document.getElementById("scoreTableBody");
-
       sched.innerHTML = "";
       score.innerHTML = "";
 
@@ -422,104 +342,58 @@
         return;
       }
 
+      const renderRow = (g) => {
+        sched.innerHTML += `
+          <tr>
+            <td>${g.date || ""}</td>
+            <td>${g.teamLevel || ""}</td>
+            <td>${g.opponent || ""}</td>
+            <td>${g.location || ""}</td>
+            <td>${g.sent ? "Score emailed" : "Pending"}</td>
+          </tr>`;
+
+        score.innerHTML += `
+          <tr>
+            <td>${g.date || ""}</td>
+            <td>${g.teamLevel || ""}</td>
+            <td>${g.opponent || ""}</td>
+            <td>${g.location || ""}</td>
+            <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+            <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+            <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+            <td>${g.sent ? "Sent" : "Not sent"}</td>
+          </tr>`;
+      };
+
       if (filterVal === "all") {
         const grouped = {};
-
         for (const g of games) {
           const key = g.teamLevel || "No Team";
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push(g);
+          (grouped[key] ||= []).push(g);
         }
-
         const teamNames = Object.keys(grouped).sort();
 
         for (const teamName of teamNames) {
           const teamGames = grouped[teamName];
 
-          sched.innerHTML += `
-            <tr class="team-header-row">
-              <td colspan="5">Team: ${teamName}</td>
-            </tr>
-          `;
+          sched.innerHTML += `<tr class="team-header-row"><td colspan="5">Team: ${teamName}</td></tr>`;
+          score.innerHTML += `<tr class="team-header-row"><td colspan="8">Team: ${teamName}</td></tr>`;
 
-          score.innerHTML += `
-            <tr class="team-header-row">
-              <td colspan="8">Team: ${teamName}</td>
-            </tr>
-          `;
-
-          for (const g of teamGames) {
-            sched.innerHTML += `
-              <tr>
-                <td>${g.date || ""}</td>
-                <td>${g.teamLevel || ""}</td>
-                <td>${g.opponent || ""}</td>
-                <td>${g.location || ""}</td>
-                <td>${g.sent ? "Score emailed" : "Pending"}</td>
-              </tr>`;
-
-            score.innerHTML += `
-              <tr>
-                <td>${g.date || ""}</td>
-                <td>${g.teamLevel || ""}</td>
-                <td>${g.opponent || ""}</td>
-                <td>${g.location || ""}</td>
-                <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-                <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
-                <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
-                <td>${g.sent ? "Sent" : "Not sent"}</td>
-              </tr>`;
-          }
+          for (const g of teamGames) renderRow(g);
         }
       } else {
         const headerLabel = `Team: ${filterVal}`;
-
-        sched.innerHTML += `
-          <tr class="team-header-row">
-            <td colspan="5">${headerLabel}</td>
-          </tr>
-        `;
-
-        score.innerHTML += `
-          <tr class="team-header-row">
-            <td colspan="8">${headerLabel}</td>
-          </tr>
-        `;
-
-        for (const g of games) {
-          sched.innerHTML += `
-            <tr>
-              <td>${g.date || ""}</td>
-              <td>${g.teamLevel || ""}</td>
-              <td>${g.opponent || ""}</td>
-              <td>${g.location || ""}</td>
-              <td>${g.sent ? "Score emailed" : "Pending"}</td>
-            </tr>`;
-
-          score.innerHTML += `
-            <tr>
-              <td>${g.date || ""}</td>
-              <td>${g.teamLevel || ""}</td>
-              <td>${g.opponent || ""}</td>
-              <td>${g.location || ""}</td>
-              <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-              <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
-              <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
-              <td>${g.sent ? "Sent" : "Not sent"}</td>
-            </tr>`;
-        }
+        sched.innerHTML += `<tr class="team-header-row"><td colspan="5">${headerLabel}</td></tr>`;
+        score.innerHTML += `<tr class="team-header-row"><td colspan="8">${headerLabel}</td></tr>`;
+        for (const g of games) renderRow(g);
       }
 
-      document.querySelectorAll(".sendBtn").forEach(btn =>
-        btn.addEventListener("click", onSendScore)
-      );
+      document.querySelectorAll(".sendBtn").forEach(btn => btn.addEventListener("click", onSendScore));
     }
 
     /* EMAIL SEND */
     function sendScoreEmail(game) {
-      const teamLabel = game.teamLevel
-        ? `${state.teamName} ${game.teamLevel}`
-        : state.teamName;
+      const teamLabel = game.teamLevel ? `${state.teamName} ${game.teamLevel}` : state.teamName;
 
       return emailjs.send(
         "service_zc1pbfj",
@@ -552,10 +426,7 @@
 
       state.teamName = document.getElementById("teamName").value.trim();
       state.season = document.getElementById("season").value.trim();
-      state.emails = document.getElementById("emails")
-        .value.split(",")
-        .map(s => s.trim())
-        .filter(Boolean);
+      state.emails = document.getElementById("emails").value.split(",").map(s => s.trim()).filter(Boolean);
 
       try {
         await saveSettingsToFirestore();
@@ -622,8 +493,10 @@
       const game = state.games.find(g => g.id === id);
       if (!game) return;
 
-      const home = document.querySelector(`input[data-id="${id}"][data-role="home"]`).value;
-      const away = document.querySelector(`input[data-id="${id}"][data-role="away"]`).value;
+      const homeEl = document.querySelector(`input[data-id="${id}"][data-role="home"]`);
+      const awayEl = document.querySelector(`input[data-id="${id}"][data-role="away"]`);
+      const home = homeEl ? homeEl.value : "";
+      const away = awayEl ? awayEl.value : "";
 
       if (home === "" || away === "") {
         sendMsg.textContent = "Enter both scores before sending.";
@@ -666,13 +539,11 @@
       const confirmText =
         filterVal === "all"
           ? "Delete ALL games for this account (all teams)?"
-          : `Delete ALL games for team \"${filterVal}\"?`;
+          : `Delete ALL games for team "${filterVal}"?`;
 
       if (!window.confirm(confirmText)) return;
 
-      const toDelete = state.games.filter(g =>
-        filterVal === "all" || g.teamLevel === filterVal
-      );
+      const toDelete = state.games.filter(g => filterVal === "all" || g.teamLevel === filterVal);
 
       if (!toDelete.length) {
         sendMsg.textContent = "No games found to reset for that selection.";
@@ -682,9 +553,8 @@
 
       try {
         const idsToDelete = new Set(toDelete.map(g => g.id));
-        for (const g of toDelete) {
-          await deleteGameFromFirestore(g.id);
-        }
+        for (const g of toDelete) await deleteGameFromFirestore(g.id);
+
         state.games = state.games.filter(g => !idsToDelete.has(g.id));
         renderTables();
         sendMsg.textContent = "Games reset for current view.";
@@ -709,10 +579,7 @@
         return;
       }
 
-      const rows = [
-        ["Date","Team","Season","Opponent","Location","Your Score","Opponent Score","Sent"]
-      ];
-
+      const rows = [["Date","Team","Season","Opponent","Location","Your Score","Opponent Score","Sent"]];
       for (const g of games) {
         rows.push([
           g.date || "",
@@ -726,28 +593,17 @@
         ]);
       }
 
-      const csv = rows
-        .map(row =>
-          row
-            .map(value => {
-              const s = String(value ?? "");
-              if (s.includes('"') || s.includes(",") || s.includes("\n")) {
-                return `"${s.replace(/"/g, '""')}"`;
-              }
-              return s;
-            })
-            .join(",")
-        )
-        .join("\n");
+      const csv = rows.map(row => row.map(value => {
+        const s = String(value ?? "");
+        if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      }).join(",")).join("\n");
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const filterVal = document.getElementById("teamFilter").value;
-      const safeFilter =
-        filterVal === "all"
-          ? "all_teams"
-          : (filterVal || "team").replace(/\s+/g, "_");
+      const safeFilter = filterVal === "all" ? "all_teams" : (filterVal || "team").replace(/\s+/g, "_");
 
       a.href = url;
       a.download = `game_scores_${safeFilter}.csv`;
@@ -760,17 +616,20 @@
       sendMsg.className = "message success";
     }
 
-    /* AUTH HANDLERS */
+    /* AUTH HANDLERS (FIXED: redirect on iPad/iOS; popup on desktop) */
     async function handleGoogleLogin() {
       const msg = document.getElementById("authMessage");
       msg.textContent = "";
       msg.className = "message";
 
       try {
-        await signInWithPopup(auth, googleProvider);
+        if (isIOSLike()) {
+          await signInWithRedirect(auth, googleProvider);
+        } else {
+          await signInWithPopup(auth, googleProvider);
+        }
       } catch (err) {
-        msg.textContent = "Google login failed: " + err.message;
-        msg.className = "message error";
+        showAuthError(err, "Google login failed");
       }
     }
 
@@ -780,21 +639,20 @@
       msg.className = "message";
 
       try {
-        await signInWithPopup(auth, appleProvider);
+        if (isIOSLike()) {
+          await signInWithRedirect(auth, appleProvider);
+        } else {
+          await signInWithPopup(auth, appleProvider);
+        }
       } catch (err) {
-        msg.textContent = "Apple login failed: " + err.message;
-        msg.className = "message error";
+        showAuthError(err, "Apple login failed");
       }
     }
 
     function toggleEmailAuthSection() {
       const section = document.getElementById("emailAuthSection");
       if (!section) return;
-      if (section.style.display === "none" || section.style.display === "") {
-        section.style.display = "block";
-      } else {
-        section.style.display = "none";
-      }
+      section.style.display = (section.style.display === "none" || section.style.display === "") ? "block" : "none";
     }
 
     async function handleEmailRegister() {
@@ -816,8 +674,7 @@
         msg.textContent = "Account created and signed in.";
         msg.className = "message success";
       } catch (err) {
-        msg.textContent = "Registration failed: " + err.message;
-        msg.className = "message error";
+        showAuthError(err, "Registration failed");
       }
     }
 
@@ -838,8 +695,7 @@
       try {
         await signInWithEmailAndPassword(auth, email, password);
       } catch (err) {
-        msg.textContent = "Email sign-in failed: " + err.message;
-        msg.className = "message error";
+        showAuthError(err, "Email sign-in failed");
       }
     }
 
@@ -851,8 +707,7 @@
       try {
         await signOut(auth);
       } catch (err) {
-        msg.textContent = "Logout failed: " + err.message;
-        msg.className = "message error";
+        showAuthError(err, "Logout failed");
       }
     }
 
@@ -919,3 +774,4 @@
   </script>
 </body>
 </html>
+
