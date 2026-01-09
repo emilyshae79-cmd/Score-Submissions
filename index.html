@@ -14,36 +14,124 @@
   </script>
 
   <style>
-    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
-    body { margin: 0; padding: 1rem; background: #f5f5f5; color: #222; }
-    h1, h2, h3 { margin-top: 0; }
-    .container { max-width: 1100px; margin: 0 auto; }
-    .card { background: #fff; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); }
-    label { display: block; font-weight: 600; margin-top: 0.5rem; }
-    input[type="text"], input[type="email"], input[type="date"], input[type="number"], input[type="password"], textarea, select {
-      width: 100%; padding: 0.45rem; border-radius: 4px; border: 1px solid #ccc; margin-top: 0.25rem;
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, sans-serif;
     }
-    button { margin-top: 0.75rem; padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; background: #e53935; color: #fff; }
-    button.secondary { background: #757575; }
-    button.blue { background: #1565c0; }
-    button.linkish { background: transparent; color: #1565c0; padding: 0.25rem 0; margin-top: 0.25rem; text-decoration: underline; }
-    table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
-    th, td { border: 1px solid #ddd; padding: 0.35rem 0.4rem; }
-    th { background: #f0f0f0; }
-    .inline-input { width: 70px; }
-    .message { margin-top: 0.5rem; font-size: 0.85rem; }
+    body {
+      margin: 0;
+      padding: 1rem;
+      background: #f5f5f5;
+      color: #222;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    input[type="password"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.45rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      margin-top: 0.25rem;
+    }
+    button {
+      margin-top: 0.75rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      background: #e53935;
+      color: #fff;
+    }
+    button.secondary {
+      background: #757575;
+    }
+    button.blue {
+      background: #1565c0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.35rem 0.4rem;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .inline-input {
+      width: 70px;
+    }
+    .message {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
     .success { color: #2e7d32; }
     .error { color: #c62828; }
-    .small { font-size: 0.85rem; color: #555; }
-    .auth-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-    .auth-row .buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
-    .toolbar select { width: auto; min-width: 160px; }
-    .team-view-label { font-size: 0.85rem; color: #444; margin-left: auto; }
-    .team-header-row { background: #ffe0e0; font-weight: 700; text-align: left; }
-    .hr { height: 1px; background: #eee; margin: 0.75rem 0; }
-    code.kbd { background:#f4f4f4; padding:0.1rem 0.25rem; border-radius:4px; }
-    .diag { font-size: 0.85rem; color:#444; margin-top:0.35rem; }
+
+    .auth-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .auth-row .buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .toolbar select {
+      width: auto;
+      min-width: 160px;
+    }
+    .small {
+      font-size: 0.85rem;
+      color: #555;
+    }
+    .team-view-label {
+      font-size: 0.85rem;
+      color: #444;
+      margin-left: auto;
+    }
+    .team-header-row {
+      background: #ffe0e0;
+      font-weight: 700;
+      text-align: left;
+    }
   </style>
 </head>
 
@@ -57,22 +145,21 @@
         <div>
           <strong>Account</strong>
           <div id="authStatus" class="small">Not signed in</div>
-          <div id="domainHint" class="diag"></div>
         </div>
         <div class="buttons">
           <button id="googleLoginBtn" type="button">Sign in with Google</button>
           <button id="appleLoginBtn" type="button" class="secondary">Sign in with Apple</button>
           <button id="emailToggleBtn" type="button" class="secondary">Email Login</button>
-          <button id="logoutBtn" type="button" style="display:none; background:#555;">Log out</button>
+          <button id="logoutBtn" type="button" style="display:none; background:#555;">
+            Log out
+          </button>
         </div>
       </div>
 
+      <!-- Email auth (login + simple register) -->
       <div id="emailAuthSection" style="display:none; margin-top:0.75rem;">
-        <div class="small">If you already have an account, use “Sign In with Email”.</div>
-        <div class="hr"></div>
-
         <label for="emailInput">Email</label>
-        <input id="emailInput" type="email" autocomplete="email" />
+        <input id="emailInput" type="text" autocomplete="email" />
 
         <label for="passwordInput">Password</label>
         <input id="passwordInput" type="password" autocomplete="current-password" />
@@ -81,8 +168,6 @@
           <button id="emailLoginBtn" type="button" class="blue">Sign In with Email</button>
           <button id="emailRegisterBtn" type="button">Register Account</button>
         </div>
-
-        <button id="forgotPasswordBtn" type="button" class="linkish">Forgot password?</button>
       </div>
 
       <div id="authMessage" class="message"></div>
@@ -92,7 +177,7 @@
     <div class="card">
       <h2>1. Season Setup</h2>
       <form id="settingsForm">
-        <label>Program / Team Name</label>
+        <label>Program / Team Name (e.g., Terrell Tigers)</label>
         <input id="teamName" type="text" required />
 
         <label>Season (e.g., 2025, 2025-2026)</label>
@@ -134,7 +219,6 @@
         </select>
         <span id="teamViewLabel" class="team-view-label"></span>
       </div>
-
       <table>
         <thead>
           <tr>
@@ -154,8 +238,12 @@
       <h2>3. Enter Scores & Send Emails</h2>
 
       <div class="toolbar">
-        <button type="button" id="resetGamesBtn" class="secondary">Reset Games (Current View)</button>
-        <button type="button" id="exportCsvBtn" class="blue">Export Current View to CSV</button>
+        <button type="button" id="resetGamesBtn" class="secondary">
+          Reset Games (Current View)
+        </button>
+        <button type="button" id="exportCsvBtn" class="blue">
+          Export Current View to CSV
+        </button>
       </div>
 
       <table>
@@ -178,22 +266,18 @@
     </div>
   </div>
 
+  <!-- MAIN FIREBASE SCRIPT -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getAuth,
-      setPersistence,
-      browserLocalPersistence,
       GoogleAuthProvider,
       OAuthProvider,
       signInWithPopup,
-      signInWithRedirect,
-      getRedirectResult,
       signOut,
       onAuthStateChanged,
       createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      sendPasswordResetEmail
+      signInWithEmailAndPassword
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       getFirestore,
@@ -207,17 +291,12 @@
       deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // ---- Canonicalize trailing slash for GitHub Pages (prevents redirect URL normalization issues)
-    // If the URL path is missing the trailing slash, GitHub may redirect and drop auth query params.
-    if (!location.pathname.endsWith("/")) {
-      location.replace(location.pathname + "/" + location.search + location.hash);
-    }
-
+    /* FIREBASE CONFIG */
     const firebaseConfig = {
       apiKey: "AIzaSyDH1ERiRuZ8ELMjxQo96ChTZ25cjJI1HpY",
       authDomain: "score-submission-4d200.firebaseapp.com",
       projectId: "score-submission-4d200",
-      storageBucket: "score-submission-4d200.appspot.com",
+      storageBucket: "score-submission-4d200.firebasestorage.app",
       messagingSenderId: "421478998862",
       appId: "1:421478998862:web:b1964a65f3cc76998ff41f",
       measurementId: "G-GN4LLM30Q7"
@@ -227,152 +306,109 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Persistence
-    await setPersistence(auth, browserLocalPersistence);
-
-    // Show current domain
-    document.getElementById("domainHint").innerHTML =
-      `Current site domain: <code class="kbd">${window.location.hostname}</code>`;
-
-    // Providers
     const googleProvider = new GoogleAuthProvider();
     const appleProvider = new OAuthProvider("apple.com");
-    appleProvider.addScope("email");
-    appleProvider.addScope("name");
 
     let currentUser = null;
     let state = { teamName: "", season: "", emails: [], games: [] };
 
-    // ---- Always show errors (no silent fails)
-    window.addEventListener("error", (e) => {
-      console.error("JS Error:", e);
-      const msg = document.getElementById("authMessage");
-      msg.textContent = "JS Error: " + (e?.message || "Unknown error");
-      msg.className = "message error";
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      console.error("Unhandled rejection:", e);
-      const msg = document.getElementById("authMessage");
-      msg.textContent = "Promise Error: " + (e?.reason?.message || e?.reason || "Unknown rejection");
-      msg.className = "message error";
-    });
-
-    function showAuthError(err, prefix) {
-      console.error(prefix, err);
-      const msg = document.getElementById("authMessage");
-      const code = err?.code || "unknown";
-      const text = err?.message || "";
-
-      let tip = "";
-      if (code === "auth/popup-blocked") tip = " Tip: Your browser blocked the popup. Allow popups for this site.";
-      if (code === "auth/unauthorized-domain") tip = " Tip: Add your domain under Firebase → Auth → Settings → Authorized domains.";
-      if (code === "auth/operation-not-allowed") tip = " Tip: Enable this provider under Firebase → Auth → Sign-in method.";
-      if (code === "auth/network-request-failed") tip = " Tip: Network/privacy blocker. Try Incognito with extensions off.";
-      if (code === "auth/invalid-credential") tip = " Tip: OAuth configuration mismatch in Google Cloud / Apple setup.";
-
-      msg.textContent = `${prefix}: Firebase Error (${code}). ${text}${tip}`.trim();
-      msg.className = "message error";
-    }
-    function showAuthSuccess(text) {
-      const msg = document.getElementById("authMessage");
-      msg.textContent = text;
-      msg.className = "message success";
-    }
-    function showAuthInfo(text) {
-      const msg = document.getElementById("authMessage");
-      msg.textContent = text;
-      msg.className = "message";
-    }
-    function escapeHtml(str) {
-      return String(str ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    // ---- Redirect handler (for Apple, and as fallback)
-    (async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) showAuthSuccess("Signed in successfully.");
-      } catch (err) {
-        showAuthError(err, "Login redirect failed");
-      }
-    })();
-
-    // ---- Firestore helpers
+    /* FIRESTORE HELPERS */
     function coachDoc() {
       if (!currentUser) throw new Error("No user");
       return doc(db, "coaches", currentUser.uid);
     }
+
     async function loadData() {
       const s = await getDoc(coachDoc());
       if (s.exists()) {
         const data = s.data();
         state.teamName = data.teamName || "";
         state.season = data.season || "";
-        state.emails = Array.isArray(data.emails) ? data.emails : [];
-      } else {
-        state.teamName = "";
-        state.season = "";
-        state.emails = [];
+        state.emails = data.emails || [];
       }
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
+
     async function saveSettingsToFirestore() {
-      await setDoc(coachDoc(), { teamName: state.teamName, season: state.season, emails: state.emails }, { merge: true });
+      await setDoc(
+        coachDoc(),
+        {
+          teamName: state.teamName,
+          season: state.season,
+          emails: state.emails
+        },
+        { merge: true }
+      );
     }
+
     async function addGameToFirestore(game) {
       const ref = await addDoc(collection(coachDoc(), "games"), game);
       return ref.id;
     }
+
     async function updateGameFirestore(game) {
-      const { id, ...data } = game;
-      await updateDoc(doc(coachDoc(), "games", id), data);
+      await updateDoc(doc(coachDoc(), "games", game.id), game);
     }
+
     async function deleteGameFromFirestore(gameId) {
       await deleteDoc(doc(coachDoc(), "games", gameId));
     }
 
-    // ---- Render
+    /* RENDER */
     function renderSettings() {
       document.getElementById("teamName").value = state.teamName || "";
       document.getElementById("season").value = state.season || "";
       document.getElementById("emails").value = (state.emails || []).join(", ");
     }
+
     function renderTeamFilter() {
       const select = document.getElementById("teamFilter");
       const label = document.getElementById("teamViewLabel");
       if (!select) return;
 
       const currentValue = select.value || "all";
-      const levels = Array.from(new Set(state.games.map(g => g.teamLevel).filter(Boolean)));
+      const levels = Array.from(
+        new Set(
+          state.games
+            .map(g => g.teamLevel)
+            .filter(Boolean)
+        )
+      );
 
       let optionsHtml = '<option value="all">All teams</option>';
       for (const level of levels) {
         const selectedAttr = level === currentValue ? "selected" : "";
-        optionsHtml += `<option value="${escapeHtml(level)}" ${selectedAttr}>${escapeHtml(level)}</option>`;
+        optionsHtml += `<option value="${level}" ${selectedAttr}>${level}</option>`;
       }
       select.innerHTML = optionsHtml;
 
       const val = select.value;
-      label.textContent = val === "all" ? "(Showing all teams)" : `(Showing only: ${val})`;
+      if (val === "all") {
+        label.textContent = "(Showing all teams)";
+      } else {
+        label.textContent = `(Showing only: ${val})`;
+      }
     }
+
     function getFilteredGames() {
       const select = document.getElementById("teamFilter");
       const filterVal = select ? select.value : "all";
-      const sorted = [...state.games].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+      const sorted = [...state.games].sort((a, b) =>
+        (a.date || "").localeCompare(b.date || "")
+      );
+
       if (filterVal === "all") return sorted;
       return sorted.filter(g => g.teamLevel === filterVal);
     }
+
     function renderTables() {
       renderTeamFilter();
 
       const sched = document.getElementById("scheduleTableBody");
       const score = document.getElementById("scoreTableBody");
+
       sched.innerHTML = "";
       score.innerHTML = "";
 
@@ -386,69 +422,123 @@
         return;
       }
 
-      const renderRow = (g) => {
-        sched.innerHTML += `
-          <tr>
-            <td>${escapeHtml(g.date || "")}</td>
-            <td>${escapeHtml(g.teamLevel || "")}</td>
-            <td>${escapeHtml(g.opponent || "")}</td>
-            <td>${escapeHtml(g.location || "")}</td>
-            <td>${g.sent ? "Score emailed" : "Pending"}</td>
-          </tr>`;
-
-        score.innerHTML += `
-          <tr>
-            <td>${escapeHtml(g.date || "")}</td>
-            <td>${escapeHtml(g.teamLevel || "")}</td>
-            <td>${escapeHtml(g.opponent || "")}</td>
-            <td>${escapeHtml(g.location || "")}</td>
-            <td><input data-id="${escapeHtml(g.id)}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-            <td><input data-id="${escapeHtml(g.id)}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
-            <td><button class="sendBtn" data-id="${escapeHtml(g.id)}">Send Score Email</button></td>
-            <td>${g.sent ? "Sent" : "Not sent"}</td>
-          </tr>`;
-      };
-
       if (filterVal === "all") {
         const grouped = {};
+
         for (const g of games) {
           const key = g.teamLevel || "No Team";
-          (grouped[key] ||= []).push(g);
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(g);
         }
+
         const teamNames = Object.keys(grouped).sort();
+
         for (const teamName of teamNames) {
           const teamGames = grouped[teamName];
-          sched.innerHTML += `<tr class="team-header-row"><td colspan="5">Team: ${escapeHtml(teamName)}</td></tr>`;
-          score.innerHTML += `<tr class="team-header-row"><td colspan="8">Team: ${escapeHtml(teamName)}</td></tr>`;
-          for (const g of teamGames) renderRow(g);
+
+          sched.innerHTML += `
+            <tr class="team-header-row">
+              <td colspan="5">Team: ${teamName}</td>
+            </tr>
+          `;
+
+          score.innerHTML += `
+            <tr class="team-header-row">
+              <td colspan="8">Team: ${teamName}</td>
+            </tr>
+          `;
+
+          for (const g of teamGames) {
+            sched.innerHTML += `
+              <tr>
+                <td>${g.date || ""}</td>
+                <td>${g.teamLevel || ""}</td>
+                <td>${g.opponent || ""}</td>
+                <td>${g.location || ""}</td>
+                <td>${g.sent ? "Score emailed" : "Pending"}</td>
+              </tr>`;
+
+            score.innerHTML += `
+              <tr>
+                <td>${g.date || ""}</td>
+                <td>${g.teamLevel || ""}</td>
+                <td>${g.opponent || ""}</td>
+                <td>${g.location || ""}</td>
+                <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+                <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+                <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+                <td>${g.sent ? "Sent" : "Not sent"}</td>
+              </tr>`;
+          }
         }
       } else {
         const headerLabel = `Team: ${filterVal}`;
-        sched.innerHTML += `<tr class="team-header-row"><td colspan="5">${escapeHtml(headerLabel)}</td></tr>`;
-        score.innerHTML += `<tr class="team-header-row"><td colspan="8">${escapeHtml(headerLabel)}</td></tr>`;
-        for (const g of games) renderRow(g);
+
+        sched.innerHTML += `
+          <tr class="team-header-row">
+            <td colspan="5">${headerLabel}</td>
+          </tr>
+        `;
+
+        score.innerHTML += `
+          <tr class="team-header-row">
+            <td colspan="8">${headerLabel}</td>
+          </tr>
+        `;
+
+        for (const g of games) {
+          sched.innerHTML += `
+            <tr>
+              <td>${g.date || ""}</td>
+              <td>${g.teamLevel || ""}</td>
+              <td>${g.opponent || ""}</td>
+              <td>${g.location || ""}</td>
+              <td>${g.sent ? "Score emailed" : "Pending"}</td>
+            </tr>`;
+
+          score.innerHTML += `
+            <tr>
+              <td>${g.date || ""}</td>
+              <td>${g.teamLevel || ""}</td>
+              <td>${g.opponent || ""}</td>
+              <td>${g.location || ""}</td>
+              <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+              <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+              <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+              <td>${g.sent ? "Sent" : "Not sent"}</td>
+            </tr>`;
+        }
       }
 
-      document.querySelectorAll(".sendBtn").forEach(btn => btn.addEventListener("click", onSendScore));
+      document.querySelectorAll(".sendBtn").forEach(btn =>
+        btn.addEventListener("click", onSendScore)
+      );
     }
 
-    // ---- EmailJS
+    /* EMAIL SEND */
     function sendScoreEmail(game) {
-      const teamLabel = game.teamLevel ? `${state.teamName} ${game.teamLevel}` : state.teamName;
-      return emailjs.send("service_zc1pbfj", "template_3fqvy3s", {
-        team_name: teamLabel,
-        season: game.season || state.season,
-        game_date: game.date,
-        opponent: game.opponent,
-        location: game.location,
-        home_score: game.homeScore,
-        away_score: game.awayScore,
-        email_list: state.emails.join(", "),
-        subject_line: `${teamLabel} vs ${game.opponent} (${game.date}) Final Score`
-      });
+      const teamLabel = game.teamLevel
+        ? `${state.teamName} ${game.teamLevel}`
+        : state.teamName;
+
+      return emailjs.send(
+        "service_zc1pbfj",
+        "template_3fqvy3s",
+        {
+          team_name: teamLabel,
+          season: game.season || state.season,
+          game_date: game.date,
+          opponent: game.opponent,
+          location: game.location,
+          home_score: game.homeScore,
+          away_score: game.awayScore,
+          email_list: state.emails.join(", "),
+          subject_line: `${teamLabel} vs ${game.opponent} (${game.date}) Final Score`
+        }
+      );
     }
 
-    // ---- Forms/actions
+    /* FORM HANDLERS */
     async function onSettingsSubmit(e) {
       e.preventDefault();
       const msg = document.getElementById("settingsMessage");
@@ -462,7 +552,10 @@
 
       state.teamName = document.getElementById("teamName").value.trim();
       state.season = document.getElementById("season").value.trim();
-      state.emails = document.getElementById("emails").value.split(",").map(s => s.trim()).filter(Boolean);
+      state.emails = document.getElementById("emails")
+        .value.split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
 
       try {
         await saveSettingsToFirestore();
@@ -470,7 +563,7 @@
         msg.className = "message success";
       } catch (err) {
         console.error(err);
-        msg.textContent = "Error saving settings. Check Firestore rules and console errors.";
+        msg.textContent = "Error saving settings.";
         msg.className = "message error";
       }
     }
@@ -510,7 +603,7 @@
         document.getElementById("gameForm").reset();
       } catch (err) {
         console.error(err);
-        sendMsg.textContent = "Error adding game. Check Firestore rules and console errors.";
+        sendMsg.textContent = "Error adding game.";
         sendMsg.className = "message error";
       }
     }
@@ -529,10 +622,8 @@
       const game = state.games.find(g => g.id === id);
       if (!game) return;
 
-      const homeEl = document.querySelector(`input[data-id="${CSS.escape(id)}"][data-role="home"]`);
-      const awayEl = document.querySelector(`input[data-id="${CSS.escape(id)}"][data-role="away"]`);
-      const home = homeEl ? homeEl.value : "";
-      const away = awayEl ? awayEl.value : "";
+      const home = document.querySelector(`input[data-id="${id}"][data-role="home"]`).value;
+      const away = document.querySelector(`input[data-id="${id}"][data-role="away"]`).value;
 
       if (home === "" || away === "") {
         sendMsg.textContent = "Enter both scores before sending.";
@@ -552,11 +643,12 @@
         sendMsg.className = "message success";
       } catch (err) {
         console.error("Email error:", err);
-        sendMsg.textContent = "Email Error: " + (err?.text || err?.message || "Unknown error");
+        sendMsg.textContent = "Email Error: " + (err.text || err.message);
         sendMsg.className = "message error";
       }
     }
 
+    /* RESET GAMES – uses current filter/view */
     async function onResetGames() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -574,11 +666,13 @@
       const confirmText =
         filterVal === "all"
           ? "Delete ALL games for this account (all teams)?"
-          : `Delete ALL games for team "${filterVal}"?`;
+          : `Delete ALL games for team \"${filterVal}\"?`;
 
       if (!window.confirm(confirmText)) return;
 
-      const toDelete = state.games.filter(g => filterVal === "all" || g.teamLevel === filterVal);
+      const toDelete = state.games.filter(g =>
+        filterVal === "all" || g.teamLevel === filterVal
+      );
 
       if (!toDelete.length) {
         sendMsg.textContent = "No games found to reset for that selection.";
@@ -588,19 +682,21 @@
 
       try {
         const idsToDelete = new Set(toDelete.map(g => g.id));
-        for (const g of toDelete) await deleteGameFromFirestore(g.id);
-
+        for (const g of toDelete) {
+          await deleteGameFromFirestore(g.id);
+        }
         state.games = state.games.filter(g => !idsToDelete.has(g.id));
         renderTables();
         sendMsg.textContent = "Games reset for current view.";
         sendMsg.className = "message success";
       } catch (err) {
         console.error(err);
-        sendMsg.textContent = "Error resetting games. Check Firestore rules and console errors.";
+        sendMsg.textContent = "Error resetting games.";
         sendMsg.className = "message error";
       }
     }
 
+    /* EXPORT CSV – only exports current view/filter */
     function onExportCsv() {
       const sendMsg = document.getElementById("sendMessage");
       sendMsg.textContent = "";
@@ -613,22 +709,46 @@
         return;
       }
 
-      const rows = [["Date","Team","Season","Opponent","Location","Your Score","Opponent Score","Sent"]];
+      const rows = [
+        ["Date","Team","Season","Opponent","Location","Your Score","Opponent Score","Sent"]
+      ];
+
       for (const g of games) {
-        rows.push([g.date||"", g.teamLevel||"", g.season||state.season||"", g.opponent||"", g.location||"", g.homeScore??"", g.awayScore??"", g.sent?"Yes":"No"]);
+        rows.push([
+          g.date || "",
+          g.teamLevel || "",
+          g.season || state.season || "",
+          g.opponent || "",
+          g.location || "",
+          g.homeScore ?? "",
+          g.awayScore ?? "",
+          g.sent ? "Yes" : "No"
+        ]);
       }
 
-      const csv = rows.map(row => row.map(value => {
-        const s = String(value ?? "");
-        if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-        return s;
-      }).join(",")).join("\n");
+      const csv = rows
+        .map(row =>
+          row
+            .map(value => {
+              const s = String(value ?? "");
+              if (s.includes('"') || s.includes(",") || s.includes("\n")) {
+                return `"${s.replace(/"/g, '""')}"`;
+              }
+              return s;
+            })
+            .join(",")
+        )
+        .join("\n");
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const filterVal = document.getElementById("teamFilter").value;
-      const safeFilter = filterVal === "all" ? "all_teams" : (filterVal || "team").replace(/\s+/g, "_");
+      const safeFilter =
+        filterVal === "all"
+          ? "all_teams"
+          : (filterVal || "team").replace(/\s+/g, "_");
+
       a.href = url;
       a.download = `game_scores_${safeFilter}.csv`;
       document.body.appendChild(a);
@@ -640,115 +760,108 @@
       sendMsg.className = "message success";
     }
 
-    // ---- AUTH actions
+    /* AUTH HANDLERS */
     async function handleGoogleLogin() {
-      showAuthInfo("Opening Google sign-in…");
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       try {
-        // POPUP first (fixes redirect result loss on GH Pages)
         await signInWithPopup(auth, googleProvider);
-        showAuthSuccess("Signed in successfully.");
       } catch (err) {
-        // If popup blocked, fall back to redirect
-        if (err?.code === "auth/popup-blocked" || err?.code === "auth/popup-closed-by-user") {
-          showAuthInfo("Popup blocked/closed. Falling back to redirect…");
-          try {
-            await signInWithRedirect(auth, googleProvider);
-          } catch (e2) {
-            showAuthError(e2, "Google login failed");
-          }
-          return;
-        }
-        showAuthError(err, "Google login failed");
+        msg.textContent = "Google login failed: " + err.message;
+        msg.className = "message error";
       }
     }
 
     async function handleAppleLogin() {
-      showAuthInfo("Opening Apple sign-in…");
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       try {
-        await signInWithRedirect(auth, appleProvider);
+        await signInWithPopup(auth, appleProvider);
       } catch (err) {
-        showAuthError(err, "Apple login failed");
+        msg.textContent = "Apple login failed: " + err.message;
+        msg.className = "message error";
       }
     }
 
     function toggleEmailAuthSection() {
       const section = document.getElementById("emailAuthSection");
       if (!section) return;
-      section.style.display = (section.style.display === "none" || section.style.display === "") ? "block" : "none";
+      if (section.style.display === "none" || section.style.display === "") {
+        section.style.display = "block";
+      } else {
+        section.style.display = "none";
+      }
     }
 
     async function handleEmailRegister() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       const email = document.getElementById("emailInput").value.trim();
       const password = document.getElementById("passwordInput").value;
 
       if (!email || !password) {
-        showAuthError({ code: "missing-fields", message: "Please enter an email and password." }, "Registration failed");
+        msg.textContent = "Enter email and password to register.";
+        msg.className = "message error";
         return;
       }
 
       try {
         await createUserWithEmailAndPassword(auth, email, password);
-        showAuthSuccess("Account created and signed in.");
+        msg.textContent = "Account created and signed in.";
+        msg.className = "message success";
       } catch (err) {
-        if (err?.code === "auth/email-already-in-use") {
-          try {
-            await signInWithEmailAndPassword(auth, email, password);
-            showAuthSuccess("This email already has an account. Signed in successfully.");
-          } catch {
-            showAuthError(
-              { code: "auth/email-already-in-use", message: "This email already has an account. Use “Sign In with Email” and enter the correct password." },
-              "Registration notice"
-            );
-          }
-          return;
-        }
-        showAuthError(err, "Registration failed");
+        msg.textContent = "Registration failed: " + err.message;
+        msg.className = "message error";
       }
     }
 
     async function handleEmailLogin() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       const email = document.getElementById("emailInput").value.trim();
       const password = document.getElementById("passwordInput").value;
 
       if (!email || !password) {
-        showAuthError({ code: "missing-fields", message: "Enter email and password to sign in." }, "Email sign-in failed");
+        msg.textContent = "Enter email and password to sign in.";
+        msg.className = "message error";
         return;
       }
 
       try {
         await signInWithEmailAndPassword(auth, email, password);
-        showAuthSuccess("Signed in successfully.");
       } catch (err) {
-        showAuthError(err, "Email sign-in failed");
-      }
-    }
-
-    async function handleForgotPassword() {
-      const email = document.getElementById("emailInput").value.trim();
-      if (!email) {
-        showAuthError({ code: "missing-email", message: "Enter your email above, then tap “Forgot password?”" }, "Password reset");
-        return;
-      }
-      try {
-        await sendPasswordResetEmail(auth, email);
-        showAuthSuccess("Password reset email sent. Check your inbox (and spam/junk).");
-      } catch (err) {
-        showAuthError(err, "Password reset failed");
+        msg.textContent = "Email sign-in failed: " + err.message;
+        msg.className = "message error";
       }
     }
 
     async function handleLogout() {
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       try {
         await signOut(auth);
-        showAuthInfo("Signed out.");
       } catch (err) {
-        showAuthError(err, "Logout failed");
+        msg.textContent = "Logout failed: " + err.message;
+        msg.className = "message error";
       }
     }
 
-    // ---- Auth state
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, async user => {
       const status = document.getElementById("authStatus");
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "";
+      msg.className = "message";
+
       const googleBtn = document.getElementById("googleLoginBtn");
       const appleBtn = document.getElementById("appleLoginBtn");
       const emailToggleBtn = document.getElementById("emailToggleBtn");
@@ -771,7 +884,8 @@
           renderTables();
         } catch (err) {
           console.error(err);
-          showAuthError({ code: "data-load-failed", message: "Error loading your data. Check Firestore rules." }, "App error");
+          msg.textContent = "Error loading your data.";
+          msg.className = "message error";
         }
       } else {
         currentUser = null;
@@ -789,13 +903,12 @@
       }
     });
 
-    // ---- Event listeners
+    /* EVENTS */
     document.getElementById("googleLoginBtn").addEventListener("click", handleGoogleLogin);
     document.getElementById("appleLoginBtn").addEventListener("click", handleAppleLogin);
     document.getElementById("emailToggleBtn").addEventListener("click", toggleEmailAuthSection);
     document.getElementById("emailLoginBtn").addEventListener("click", handleEmailLogin);
     document.getElementById("emailRegisterBtn").addEventListener("click", handleEmailRegister);
-    document.getElementById("forgotPasswordBtn").addEventListener("click", handleForgotPassword);
     document.getElementById("logoutBtn").addEventListener("click", handleLogout);
 
     document.getElementById("settingsForm").addEventListener("submit", onSettingsSubmit);
