@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
     (function () {
+      // IMPORTANT: This runs before the module below.
       emailjs.init("js0OsdaHtUNCJw2vP"); /* YOUR PUBLIC KEY */
     })();
   </script>
@@ -20,7 +21,7 @@
     .container { max-width: 1100px; margin: 0 auto; }
     .card { background: #fff; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); }
     label { display: block; font-weight: 600; margin-top: 0.5rem; }
-    input[type="text"], input[type="date"], input[type="number"], input[type="password"], textarea, select {
+    input[type="text"], input[type="email"], input[type="date"], input[type="number"], input[type="password"], textarea, select {
       width: 100%; padding: 0.45rem; border-radius: 4px; border: 1px solid #ccc; margin-top: 0.25rem;
     }
     button { margin-top: 0.75rem; padding: 0.5rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; background: #e53935; color: #fff; }
@@ -42,6 +43,7 @@
     .team-view-label { font-size: 0.85rem; color: #444; margin-left: auto; }
     .team-header-row { background: #ffe0e0; font-weight: 700; text-align: left; }
     .hr { height: 1px; background: #eee; margin: 0.75rem 0; }
+    code.kbd { background:#f4f4f4; padding:0.1rem 0.25rem; border-radius:4px; }
   </style>
 </head>
 
@@ -55,6 +57,7 @@
         <div>
           <strong>Account</strong>
           <div id="authStatus" class="small">Not signed in</div>
+          <div id="domainHint" class="small"></div>
         </div>
         <div class="buttons">
           <button id="googleLoginBtn" type="button">Sign in with Google</button>
@@ -69,7 +72,7 @@
         <div class="hr"></div>
 
         <label for="emailInput">Email</label>
-        <input id="emailInput" type="text" autocomplete="email" />
+        <input id="emailInput" type="email" autocomplete="email" />
 
         <label for="passwordInput">Password</label>
         <input id="passwordInput" type="password" autocomplete="current-password" />
@@ -176,9 +179,14 @@
   </div>
 
   <script type="module">
+    // ===========================
+    // Firebase imports (all SAME version)
+    // ===========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getAuth,
+      setPersistence,
+      browserLocalPersistence,
       GoogleAuthProvider,
       OAuthProvider,
       signInWithRedirect,
@@ -201,75 +209,132 @@
       deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+    // ===========================
+    // Firebase config
+    // ===========================
     const firebaseConfig = {
       apiKey: "AIzaSyDH1ERiRuZ8ELMjxQo96ChTZ25cjJI1HpY",
       authDomain: "score-submission-4d200.firebaseapp.com",
       projectId: "score-submission-4d200",
-      storageBucket: "score-submission-4d200.firebasestorage.app",
+      // NOTE: storageBucket isn't used for auth, but keep it accurate if you use Storage:
+      storageBucket: "score-submission-4d200.appspot.com",
       messagingSenderId: "421478998862",
       appId: "1:421478998862:web:b1964a65f3cc76998ff41f",
       measurementId: "G-GN4LLM30Q7"
     };
 
+    // ===========================
+    // Initialize
+    // ===========================
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // Keep users signed in reliably across refreshes
+    await setPersistence(auth, browserLocalPersistence);
+
+    // Providers
     const googleProvider = new GoogleAuthProvider();
     const appleProvider = new OAuthProvider("apple.com");
     appleProvider.addScope("email");
     appleProvider.addScope("name");
 
+    // State
     let currentUser = null;
     let state = { teamName: "", season: "", emails: [], games: [] };
 
+    // ===========================
+    // UI helpers
+    // ===========================
     function showAuthError(err, prefix) {
       console.error(prefix, err);
       const msg = document.getElementById("authMessage");
       const code = err?.code || "unknown";
       const text = err?.message || "";
-      msg.textContent = `${prefix}: Firebase Error (${code}). ${text}`.trim();
+
+      // Friendly tips for the common “nothing works” cases
+      let tip = "";
+      if (code === "auth/unauthorized-domain") {
+        tip = " Tip: Add your domain to Firebase → Authentication → Settings → Authorized domains.";
+      } else if (code === "auth/operation-not-allowed") {
+        tip = " Tip: Enable this provider in Firebase → Authentication → Sign-in method.";
+      } else if (code === "auth/redirect-cancelled-by-user") {
+        tip = " Tip: You cancelled the sign-in. Try again.";
+      } else if (code === "auth/network-request-failed") {
+        tip = " Tip: Network blocked. Try a different network / disable strict blockers.";
+      } else if (code === "auth/invalid-credential") {
+        tip = " Tip: Provider setup or redirect URL mismatch (common with Apple).";
+      }
+
+      msg.textContent = `${prefix}: Firebase Error (${code}). ${text}${tip}`.trim();
       msg.className = "message error";
     }
+
     function showAuthSuccess(text) {
       const msg = document.getElementById("authMessage");
       msg.textContent = text;
       msg.className = "message success";
     }
+
     function showAuthInfo(text) {
       const msg = document.getElementById("authMessage");
       msg.textContent = text;
       msg.className = "message";
     }
 
-    // Handle redirect return after OAuth
+    // Display current host to help you confirm Authorized Domains quickly
+    const host = window.location.hostname;
+    const domainHint = document.getElementById("domainHint");
+    domainHint.innerHTML = `Current site domain: <code class="kbd">${host || "(unknown)"}</code>`;
+
+    // ===========================
+    // Redirect result handling (CRITICAL for redirect flows)
+    // ===========================
     (async () => {
       try {
-        await getRedirectResult(auth);
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          showAuthSuccess("Signed in successfully.");
+        }
       } catch (err) {
+        // If the redirect fails, you WANT to see the exact error
         if (err) showAuthError(err, "Login redirect failed");
       }
     })();
 
+    // ===========================
+    // Firestore helpers
+    // ===========================
     function coachDoc() {
       if (!currentUser) throw new Error("No user");
       return doc(db, "coaches", currentUser.uid);
     }
 
     async function loadData() {
+      // Settings doc
       const s = await getDoc(coachDoc());
       if (s.exists()) {
         const data = s.data();
         state.teamName = data.teamName || "";
         state.season = data.season || "";
-        state.emails = data.emails || [];
+        state.emails = Array.isArray(data.emails) ? data.emails : [];
+      } else {
+        state.teamName = "";
+        state.season = "";
+        state.emails = [];
       }
+
+      // Games subcollection
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     async function saveSettingsToFirestore() {
-      await setDoc(coachDoc(), { teamName: state.teamName, season: state.season, emails: state.emails }, { merge: true });
+      await setDoc(
+        coachDoc(),
+        { teamName: state.teamName, season: state.season, emails: state.emails },
+        { merge: true }
+      );
     }
 
     async function addGameToFirestore(game) {
@@ -286,6 +351,9 @@
       await deleteDoc(doc(coachDoc(), "games", gameId));
     }
 
+    // ===========================
+    // Render
+    // ===========================
     function renderSettings() {
       document.getElementById("teamName").value = state.teamName || "";
       document.getElementById("season").value = state.season || "";
@@ -303,7 +371,7 @@
       let optionsHtml = '<option value="all">All teams</option>';
       for (const level of levels) {
         const selectedAttr = level === currentValue ? "selected" : "";
-        optionsHtml += `<option value="${level}" ${selectedAttr}>${level}</option>`;
+        optionsHtml += `<option value="${escapeHtml(level)}" ${selectedAttr}>${escapeHtml(level)}</option>`;
       }
       select.innerHTML = optionsHtml;
 
@@ -340,22 +408,22 @@
       const renderRow = (g) => {
         sched.innerHTML += `
           <tr>
-            <td>${g.date || ""}</td>
-            <td>${g.teamLevel || ""}</td>
-            <td>${g.opponent || ""}</td>
-            <td>${g.location || ""}</td>
+            <td>${escapeHtml(g.date || "")}</td>
+            <td>${escapeHtml(g.teamLevel || "")}</td>
+            <td>${escapeHtml(g.opponent || "")}</td>
+            <td>${escapeHtml(g.location || "")}</td>
             <td>${g.sent ? "Score emailed" : "Pending"}</td>
           </tr>`;
 
         score.innerHTML += `
           <tr>
-            <td>${g.date || ""}</td>
-            <td>${g.teamLevel || ""}</td>
-            <td>${g.opponent || ""}</td>
-            <td>${g.location || ""}</td>
-            <td><input data-id="${g.id}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
-            <td><input data-id="${g.id}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
-            <td><button class="sendBtn" data-id="${g.id}">Send Score Email</button></td>
+            <td>${escapeHtml(g.date || "")}</td>
+            <td>${escapeHtml(g.teamLevel || "")}</td>
+            <td>${escapeHtml(g.opponent || "")}</td>
+            <td>${escapeHtml(g.location || "")}</td>
+            <td><input data-id="${escapeHtml(g.id)}" data-role="home" class="inline-input" type="number" value="${g.homeScore ?? ""}"></td>
+            <td><input data-id="${escapeHtml(g.id)}" data-role="away" class="inline-input" type="number" value="${g.awayScore ?? ""}"></td>
+            <td><button class="sendBtn" data-id="${escapeHtml(g.id)}">Send Score Email</button></td>
             <td>${g.sent ? "Sent" : "Not sent"}</td>
           </tr>`;
       };
@@ -369,20 +437,33 @@
         const teamNames = Object.keys(grouped).sort();
         for (const teamName of teamNames) {
           const teamGames = grouped[teamName];
-          sched.innerHTML += `<tr class="team-header-row"><td colspan="5">Team: ${teamName}</td></tr>`;
-          score.innerHTML += `<tr class="team-header-row"><td colspan="8">Team: ${teamName}</td></tr>`;
+          sched.innerHTML += `<tr class="team-header-row"><td colspan="5">Team: ${escapeHtml(teamName)}</td></tr>`;
+          score.innerHTML += `<tr class="team-header-row"><td colspan="8">Team: ${escapeHtml(teamName)}</td></tr>`;
           for (const g of teamGames) renderRow(g);
         }
       } else {
         const headerLabel = `Team: ${filterVal}`;
-        sched.innerHTML += `<tr class="team-header-row"><td colspan="5">${headerLabel}</td></tr>`;
-        score.innerHTML += `<tr class="team-header-row"><td colspan="8">${headerLabel}</td></tr>`;
+        sched.innerHTML += `<tr class="team-header-row"><td colspan="5">${escapeHtml(headerLabel)}</td></tr>`;
+        score.innerHTML += `<tr class="team-header-row"><td colspan="8">${escapeHtml(headerLabel)}</td></tr>`;
         for (const g of games) renderRow(g);
       }
 
       document.querySelectorAll(".sendBtn").forEach(btn => btn.addEventListener("click", onSendScore));
     }
 
+    // Basic HTML escape (prevents weird UI breaks if someone types < > etc.)
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    // ===========================
+    // EmailJS
+    // ===========================
     function sendScoreEmail(game) {
       const teamLabel = game.teamLevel ? `${state.teamName} ${game.teamLevel}` : state.teamName;
       return emailjs.send("service_zc1pbfj", "template_3fqvy3s", {
@@ -398,6 +479,9 @@
       });
     }
 
+    // ===========================
+    // App actions
+    // ===========================
     async function onSettingsSubmit(e) {
       e.preventDefault();
       const msg = document.getElementById("settingsMessage");
@@ -419,7 +503,7 @@
         msg.className = "message success";
       } catch (err) {
         console.error(err);
-        msg.textContent = "Error saving settings.";
+        msg.textContent = "Error saving settings. Check Firestore rules and console errors.";
         msg.className = "message error";
       }
     }
@@ -459,7 +543,7 @@
         document.getElementById("gameForm").reset();
       } catch (err) {
         console.error(err);
-        sendMsg.textContent = "Error adding game.";
+        sendMsg.textContent = "Error adding game. Check Firestore rules and console errors.";
         sendMsg.className = "message error";
       }
     }
@@ -478,8 +562,8 @@
       const game = state.games.find(g => g.id === id);
       if (!game) return;
 
-      const homeEl = document.querySelector(`input[data-id="${id}"][data-role="home"]`);
-      const awayEl = document.querySelector(`input[data-id="${id}"][data-role="away"]`);
+      const homeEl = document.querySelector(`input[data-id="${CSS.escape(id)}"][data-role="home"]`);
+      const awayEl = document.querySelector(`input[data-id="${CSS.escape(id)}"][data-role="away"]`);
       const home = homeEl ? homeEl.value : "";
       const away = awayEl ? awayEl.value : "";
 
@@ -501,7 +585,7 @@
         sendMsg.className = "message success";
       } catch (err) {
         console.error("Email error:", err);
-        sendMsg.textContent = "Email Error: " + (err.text || err.message);
+        sendMsg.textContent = "Email Error: " + (err?.text || err?.message || "Unknown error");
         sendMsg.className = "message error";
       }
     }
@@ -545,7 +629,7 @@
         sendMsg.className = "message success";
       } catch (err) {
         console.error(err);
-        sendMsg.textContent = "Error resetting games.";
+        sendMsg.textContent = "Error resetting games. Check Firestore rules and console errors.";
         sendMsg.className = "message error";
       }
     }
@@ -589,17 +673,25 @@
       sendMsg.className = "message success";
     }
 
-    // AUTH — redirect only
+    // ===========================
+    // AUTH (redirect only)
+    // ===========================
     async function handleGoogleLogin() {
       showAuthInfo("Opening Google sign-in…");
-      try { await signInWithRedirect(auth, googleProvider); }
-      catch (err) { showAuthError(err, "Google login failed"); }
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (err) {
+        showAuthError(err, "Google login failed");
+      }
     }
 
     async function handleAppleLogin() {
       showAuthInfo("Opening Apple sign-in…");
-      try { await signInWithRedirect(auth, appleProvider); }
-      catch (err) { showAuthError(err, "Apple login failed"); }
+      try {
+        await signInWithRedirect(auth, appleProvider);
+      } catch (err) {
+        showAuthError(err, "Apple login failed");
+      }
     }
 
     function toggleEmailAuthSection() {
@@ -622,10 +714,11 @@
         showAuthSuccess("Account created and signed in.");
       } catch (err) {
         if (err?.code === "auth/email-already-in-use") {
+          // Try sign-in if they meant to log in
           try {
             await signInWithEmailAndPassword(auth, email, password);
             showAuthSuccess("This email already has an account. Signed in successfully.");
-          } catch {
+          } catch (e2) {
             showAuthError(
               { code: "auth/email-already-in-use", message: "This email already has an account. Use “Sign In with Email” and enter the correct password." },
               "Registration notice"
@@ -660,7 +753,10 @@
         showAuthError({ code: "missing-email", message: "Enter your email above, then tap “Forgot password?”" }, "Password reset");
         return;
       }
+
       try {
+        // You can pass actionCodeSettings if you want a specific continue URL,
+        // but default works as long as your domain is authorized.
         await sendPasswordResetEmail(auth, email);
         showAuthSuccess("Password reset email sent. Check your inbox (and spam/junk).");
       } catch (err) {
@@ -669,10 +765,17 @@
     }
 
     async function handleLogout() {
-      try { await signOut(auth); }
-      catch (err) { showAuthError(err, "Logout failed"); }
+      try {
+        await signOut(auth);
+        showAuthInfo("Signed out.");
+      } catch (err) {
+        showAuthError(err, "Logout failed");
+      }
     }
 
+    // ===========================
+    // Auth state
+    // ===========================
     onAuthStateChanged(auth, async user => {
       const status = document.getElementById("authStatus");
       const googleBtn = document.getElementById("googleLoginBtn");
@@ -684,6 +787,7 @@
       if (user) {
         currentUser = user;
         status.textContent = `Signed in as ${user.email || "Account"}`;
+
         if (googleBtn) googleBtn.style.display = "none";
         if (appleBtn) appleBtn.style.display = "none";
         if (emailToggleBtn) emailToggleBtn.style.display = "none";
@@ -696,11 +800,12 @@
           renderTables();
         } catch (err) {
           console.error(err);
-          showAuthError({ code: "data-load-failed", message: "Error loading your data." }, "App error");
+          showAuthError({ code: "data-load-failed", message: "Error loading your data. Check Firestore rules." }, "App error");
         }
       } else {
         currentUser = null;
         status.textContent = "Not signed in";
+
         if (googleBtn) googleBtn.style.display = "inline-block";
         if (appleBtn) appleBtn.style.display = "inline-block";
         if (emailToggleBtn) emailToggleBtn.style.display = "inline-block";
@@ -713,6 +818,9 @@
       }
     });
 
+    // ===========================
+    // Wire up events
+    // ===========================
     document.getElementById("googleLoginBtn").addEventListener("click", handleGoogleLogin);
     document.getElementById("appleLoginBtn").addEventListener("click", handleAppleLogin);
     document.getElementById("emailToggleBtn").addEventListener("click", toggleEmailAuthSection);
