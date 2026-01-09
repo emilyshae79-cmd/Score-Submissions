@@ -9,7 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
     (function () {
-      // IMPORTANT: This runs before the module below.
       emailjs.init("js0OsdaHtUNCJw2vP"); /* YOUR PUBLIC KEY */
     })();
   </script>
@@ -44,6 +43,7 @@
     .team-header-row { background: #ffe0e0; font-weight: 700; text-align: left; }
     .hr { height: 1px; background: #eee; margin: 0.75rem 0; }
     code.kbd { background:#f4f4f4; padding:0.1rem 0.25rem; border-radius:4px; }
+    .diag { font-size: 0.85rem; color:#444; margin-top:0.35rem; }
   </style>
 </head>
 
@@ -57,7 +57,7 @@
         <div>
           <strong>Account</strong>
           <div id="authStatus" class="small">Not signed in</div>
-          <div id="domainHint" class="small"></div>
+          <div id="domainHint" class="diag"></div>
         </div>
         <div class="buttons">
           <button id="googleLoginBtn" type="button">Sign in with Google</button>
@@ -179,9 +179,6 @@
   </div>
 
   <script type="module">
-    // ===========================
-    // Firebase imports (all SAME version)
-    // ===========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getAuth,
@@ -210,13 +207,12 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // ===========================
-    // Firebase config
+    // Firebase config (yours)
     // ===========================
     const firebaseConfig = {
       apiKey: "AIzaSyDH1ERiRuZ8ELMjxQo96ChTZ25cjJI1HpY",
       authDomain: "score-submission-4d200.firebaseapp.com",
       projectId: "score-submission-4d200",
-      // NOTE: storageBucket isn't used for auth, but keep it accurate if you use Storage:
       storageBucket: "score-submission-4d200.appspot.com",
       messagingSenderId: "421478998862",
       appId: "1:421478998862:web:b1964a65f3cc76998ff41f",
@@ -224,14 +220,26 @@
     };
 
     // ===========================
-    // Initialize
+    // Init
     // ===========================
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Keep users signed in reliably across refreshes
-    await setPersistence(auth, browserLocalPersistence);
+    // Make redirect + refresh sign-in stick reliably
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      console.log("Auth persistence set ✅");
+    } catch (e) {
+      console.error("Persistence error:", e);
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "Auth persistence error: " + (e?.message || "Unknown error");
+      msg.className = "message error";
+    }
+
+    // Show current domain
+    const domainHint = document.getElementById("domainHint");
+    domainHint.innerHTML = `Current site domain: <code class="kbd">${window.location.hostname}</code>`;
 
     // Providers
     const googleProvider = new GoogleAuthProvider();
@@ -244,6 +252,23 @@
     let state = { teamName: "", season: "", emails: [], games: [] };
 
     // ===========================
+    // Error surfacing (prevents “silent” failures)
+    // ===========================
+    window.addEventListener("error", (e) => {
+      console.error("JS Error:", e);
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "JS Error: " + (e?.message || "Unknown error");
+      msg.className = "message error";
+    });
+
+    window.addEventListener("unhandledrejection", (e) => {
+      console.error("Unhandled rejection:", e);
+      const msg = document.getElementById("authMessage");
+      msg.textContent = "Promise Error: " + (e?.reason?.message || e?.reason || "Unknown rejection");
+      msg.className = "message error";
+    });
+
+    // ===========================
     // UI helpers
     // ===========================
     function showAuthError(err, prefix) {
@@ -252,18 +277,17 @@
       const code = err?.code || "unknown";
       const text = err?.message || "";
 
-      // Friendly tips for the common “nothing works” cases
       let tip = "";
       if (code === "auth/unauthorized-domain") {
-        tip = " Tip: Add your domain to Firebase → Authentication → Settings → Authorized domains.";
+        tip = " Tip: Firebase → Auth → Settings → Authorized domains must include this site domain.";
       } else if (code === "auth/operation-not-allowed") {
-        tip = " Tip: Enable this provider in Firebase → Authentication → Sign-in method.";
-      } else if (code === "auth/redirect-cancelled-by-user") {
-        tip = " Tip: You cancelled the sign-in. Try again.";
+        tip = " Tip: Enable this provider in Firebase → Auth → Sign-in method.";
       } else if (code === "auth/network-request-failed") {
-        tip = " Tip: Network blocked. Try a different network / disable strict blockers.";
+        tip = " Tip: Network blocked or extension/privacy setting. Try disabling blockers or third-party cookie blocks.";
       } else if (code === "auth/invalid-credential") {
-        tip = " Tip: Provider setup or redirect URL mismatch (common with Apple).";
+        tip = " Tip: OAuth setup mismatch (common with Apple/Google credential config).";
+      } else if (code === "auth/redirect-cancelled-by-user") {
+        tip = " Tip: The sign-in flow was cancelled. Try again.";
       }
 
       msg.textContent = `${prefix}: Firebase Error (${code}). ${text}${tip}`.trim();
@@ -282,23 +306,30 @@
       msg.className = "message";
     }
 
-    // Display current host to help you confirm Authorized Domains quickly
-    const host = window.location.hostname;
-    const domainHint = document.getElementById("domainHint");
-    domainHint.innerHTML = `Current site domain: <code class="kbd">${host || "(unknown)"}</code>`;
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
     // ===========================
-    // Redirect result handling (CRITICAL for redirect flows)
+    // Redirect return handler (LOUD)
     // ===========================
     (async () => {
       try {
         const result = await getRedirectResult(auth);
+        console.log("getRedirectResult:", result);
+
         if (result?.user) {
           showAuthSuccess("Signed in successfully.");
+        } else {
+          console.log("No redirect result user returned (yet). Waiting for auth state...");
         }
       } catch (err) {
-        // If the redirect fails, you WANT to see the exact error
-        if (err) showAuthError(err, "Login redirect failed");
+        showAuthError(err, "Login redirect failed");
       }
     })();
 
@@ -311,7 +342,6 @@
     }
 
     async function loadData() {
-      // Settings doc
       const s = await getDoc(coachDoc());
       if (s.exists()) {
         const data = s.data();
@@ -324,17 +354,12 @@
         state.emails = [];
       }
 
-      // Games subcollection
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     async function saveSettingsToFirestore() {
-      await setDoc(
-        coachDoc(),
-        { teamName: state.teamName, season: state.season, emails: state.emails },
-        { merge: true }
-      );
+      await setDoc(coachDoc(), { teamName: state.teamName, season: state.season, emails: state.emails }, { merge: true });
     }
 
     async function addGameToFirestore(game) {
@@ -451,16 +476,6 @@
       document.querySelectorAll(".sendBtn").forEach(btn => btn.addEventListener("click", onSendScore));
     }
 
-    // Basic HTML escape (prevents weird UI breaks if someone types < > etc.)
-    function escapeHtml(str) {
-      return String(str ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
     // ===========================
     // EmailJS
     // ===========================
@@ -480,7 +495,7 @@
     }
 
     // ===========================
-    // App actions
+    // Forms/actions
     // ===========================
     async function onSettingsSubmit(e) {
       e.preventDefault();
@@ -674,7 +689,7 @@
     }
 
     // ===========================
-    // AUTH (redirect only)
+    // AUTH actions (redirect)
     // ===========================
     async function handleGoogleLogin() {
       showAuthInfo("Opening Google sign-in…");
@@ -714,11 +729,10 @@
         showAuthSuccess("Account created and signed in.");
       } catch (err) {
         if (err?.code === "auth/email-already-in-use") {
-          // Try sign-in if they meant to log in
           try {
             await signInWithEmailAndPassword(auth, email, password);
             showAuthSuccess("This email already has an account. Signed in successfully.");
-          } catch (e2) {
+          } catch {
             showAuthError(
               { code: "auth/email-already-in-use", message: "This email already has an account. Use “Sign In with Email” and enter the correct password." },
               "Registration notice"
@@ -755,8 +769,6 @@
       }
 
       try {
-        // You can pass actionCodeSettings if you want a specific continue URL,
-        // but default works as long as your domain is authorized.
         await sendPasswordResetEmail(auth, email);
         showAuthSuccess("Password reset email sent. Check your inbox (and spam/junk).");
       } catch (err) {
@@ -776,7 +788,9 @@
     // ===========================
     // Auth state
     // ===========================
-    onAuthStateChanged(auth, async user => {
+    onAuthStateChanged(auth, async (user) => {
+      console.log("onAuthStateChanged user:", user);
+
       const status = document.getElementById("authStatus");
       const googleBtn = document.getElementById("googleLoginBtn");
       const appleBtn = document.getElementById("appleLoginBtn");
@@ -819,7 +833,7 @@
     });
 
     // ===========================
-    // Wire up events
+    // Event listeners
     // ===========================
     document.getElementById("googleLoginBtn").addEventListener("click", handleGoogleLogin);
     document.getElementById("appleLoginBtn").addEventListener("click", handleAppleLogin);
@@ -837,5 +851,6 @@
   </script>
 </body>
 </html>
+
 
 
