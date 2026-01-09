@@ -186,6 +186,7 @@
       browserLocalPersistence,
       GoogleAuthProvider,
       OAuthProvider,
+      signInWithPopup,
       signInWithRedirect,
       getRedirectResult,
       signOut,
@@ -206,9 +207,12 @@
       deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // ===========================
-    // Firebase config (yours)
-    // ===========================
+    // ---- Canonicalize trailing slash for GitHub Pages (prevents redirect URL normalization issues)
+    // If the URL path is missing the trailing slash, GitHub may redirect and drop auth query params.
+    if (!location.pathname.endsWith("/")) {
+      location.replace(location.pathname + "/" + location.search + location.hash);
+    }
+
     const firebaseConfig = {
       apiKey: "AIzaSyDH1ERiRuZ8ELMjxQo96ChTZ25cjJI1HpY",
       authDomain: "score-submission-4d200.firebaseapp.com",
@@ -219,27 +223,16 @@
       measurementId: "G-GN4LLM30Q7"
     };
 
-    // ===========================
-    // Init
-    // ===========================
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Make redirect + refresh sign-in stick reliably
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      console.log("Auth persistence set ✅");
-    } catch (e) {
-      console.error("Persistence error:", e);
-      const msg = document.getElementById("authMessage");
-      msg.textContent = "Auth persistence error: " + (e?.message || "Unknown error");
-      msg.className = "message error";
-    }
+    // Persistence
+    await setPersistence(auth, browserLocalPersistence);
 
     // Show current domain
-    const domainHint = document.getElementById("domainHint");
-    domainHint.innerHTML = `Current site domain: <code class="kbd">${window.location.hostname}</code>`;
+    document.getElementById("domainHint").innerHTML =
+      `Current site domain: <code class="kbd">${window.location.hostname}</code>`;
 
     // Providers
     const googleProvider = new GoogleAuthProvider();
@@ -247,20 +240,16 @@
     appleProvider.addScope("email");
     appleProvider.addScope("name");
 
-    // State
     let currentUser = null;
     let state = { teamName: "", season: "", emails: [], games: [] };
 
-    // ===========================
-    // Error surfacing (prevents “silent” failures)
-    // ===========================
+    // ---- Always show errors (no silent fails)
     window.addEventListener("error", (e) => {
       console.error("JS Error:", e);
       const msg = document.getElementById("authMessage");
       msg.textContent = "JS Error: " + (e?.message || "Unknown error");
       msg.className = "message error";
     });
-
     window.addEventListener("unhandledrejection", (e) => {
       console.error("Unhandled rejection:", e);
       const msg = document.getElementById("authMessage");
@@ -268,9 +257,6 @@
       msg.className = "message error";
     });
 
-    // ===========================
-    // UI helpers
-    // ===========================
     function showAuthError(err, prefix) {
       console.error(prefix, err);
       const msg = document.getElementById("authMessage");
@@ -278,34 +264,25 @@
       const text = err?.message || "";
 
       let tip = "";
-      if (code === "auth/unauthorized-domain") {
-        tip = " Tip: Firebase → Auth → Settings → Authorized domains must include this site domain.";
-      } else if (code === "auth/operation-not-allowed") {
-        tip = " Tip: Enable this provider in Firebase → Auth → Sign-in method.";
-      } else if (code === "auth/network-request-failed") {
-        tip = " Tip: Network blocked or extension/privacy setting. Try disabling blockers or third-party cookie blocks.";
-      } else if (code === "auth/invalid-credential") {
-        tip = " Tip: OAuth setup mismatch (common with Apple/Google credential config).";
-      } else if (code === "auth/redirect-cancelled-by-user") {
-        tip = " Tip: The sign-in flow was cancelled. Try again.";
-      }
+      if (code === "auth/popup-blocked") tip = " Tip: Your browser blocked the popup. Allow popups for this site.";
+      if (code === "auth/unauthorized-domain") tip = " Tip: Add your domain under Firebase → Auth → Settings → Authorized domains.";
+      if (code === "auth/operation-not-allowed") tip = " Tip: Enable this provider under Firebase → Auth → Sign-in method.";
+      if (code === "auth/network-request-failed") tip = " Tip: Network/privacy blocker. Try Incognito with extensions off.";
+      if (code === "auth/invalid-credential") tip = " Tip: OAuth configuration mismatch in Google Cloud / Apple setup.";
 
       msg.textContent = `${prefix}: Firebase Error (${code}). ${text}${tip}`.trim();
       msg.className = "message error";
     }
-
     function showAuthSuccess(text) {
       const msg = document.getElementById("authMessage");
       msg.textContent = text;
       msg.className = "message success";
     }
-
     function showAuthInfo(text) {
       const msg = document.getElementById("authMessage");
       msg.textContent = text;
       msg.className = "message";
     }
-
     function escapeHtml(str) {
       return String(str ?? "")
         .replaceAll("&", "&amp;")
@@ -315,32 +292,21 @@
         .replaceAll("'", "&#039;");
     }
 
-    // ===========================
-    // Redirect return handler (LOUD)
-    // ===========================
+    // ---- Redirect handler (for Apple, and as fallback)
     (async () => {
       try {
         const result = await getRedirectResult(auth);
-        console.log("getRedirectResult:", result);
-
-        if (result?.user) {
-          showAuthSuccess("Signed in successfully.");
-        } else {
-          console.log("No redirect result user returned (yet). Waiting for auth state...");
-        }
+        if (result?.user) showAuthSuccess("Signed in successfully.");
       } catch (err) {
         showAuthError(err, "Login redirect failed");
       }
     })();
 
-    // ===========================
-    // Firestore helpers
-    // ===========================
+    // ---- Firestore helpers
     function coachDoc() {
       if (!currentUser) throw new Error("No user");
       return doc(db, "coaches", currentUser.uid);
     }
-
     async function loadData() {
       const s = await getDoc(coachDoc());
       if (s.exists()) {
@@ -353,38 +319,30 @@
         state.season = "";
         state.emails = [];
       }
-
       const g = await getDocs(collection(coachDoc(), "games"));
       state.games = g.docs.map(d => ({ id: d.id, ...d.data() }));
     }
-
     async function saveSettingsToFirestore() {
       await setDoc(coachDoc(), { teamName: state.teamName, season: state.season, emails: state.emails }, { merge: true });
     }
-
     async function addGameToFirestore(game) {
       const ref = await addDoc(collection(coachDoc(), "games"), game);
       return ref.id;
     }
-
     async function updateGameFirestore(game) {
       const { id, ...data } = game;
       await updateDoc(doc(coachDoc(), "games", id), data);
     }
-
     async function deleteGameFromFirestore(gameId) {
       await deleteDoc(doc(coachDoc(), "games", gameId));
     }
 
-    // ===========================
-    // Render
-    // ===========================
+    // ---- Render
     function renderSettings() {
       document.getElementById("teamName").value = state.teamName || "";
       document.getElementById("season").value = state.season || "";
       document.getElementById("emails").value = (state.emails || []).join(", ");
     }
-
     function renderTeamFilter() {
       const select = document.getElementById("teamFilter");
       const label = document.getElementById("teamViewLabel");
@@ -403,7 +361,6 @@
       const val = select.value;
       label.textContent = val === "all" ? "(Showing all teams)" : `(Showing only: ${val})`;
     }
-
     function getFilteredGames() {
       const select = document.getElementById("teamFilter");
       const filterVal = select ? select.value : "all";
@@ -411,7 +368,6 @@
       if (filterVal === "all") return sorted;
       return sorted.filter(g => g.teamLevel === filterVal);
     }
-
     function renderTables() {
       renderTeamFilter();
 
@@ -476,9 +432,7 @@
       document.querySelectorAll(".sendBtn").forEach(btn => btn.addEventListener("click", onSendScore));
     }
 
-    // ===========================
-    // EmailJS
-    // ===========================
+    // ---- EmailJS
     function sendScoreEmail(game) {
       const teamLabel = game.teamLevel ? `${state.teamName} ${game.teamLevel}` : state.teamName;
       return emailjs.send("service_zc1pbfj", "template_3fqvy3s", {
@@ -494,9 +448,7 @@
       });
     }
 
-    // ===========================
-    // Forms/actions
-    // ===========================
+    // ---- Forms/actions
     async function onSettingsSubmit(e) {
       e.preventDefault();
       const msg = document.getElementById("settingsMessage");
@@ -688,14 +640,24 @@
       sendMsg.className = "message success";
     }
 
-    // ===========================
-    // AUTH actions (redirect)
-    // ===========================
+    // ---- AUTH actions
     async function handleGoogleLogin() {
       showAuthInfo("Opening Google sign-in…");
       try {
-        await signInWithRedirect(auth, googleProvider);
+        // POPUP first (fixes redirect result loss on GH Pages)
+        await signInWithPopup(auth, googleProvider);
+        showAuthSuccess("Signed in successfully.");
       } catch (err) {
+        // If popup blocked, fall back to redirect
+        if (err?.code === "auth/popup-blocked" || err?.code === "auth/popup-closed-by-user") {
+          showAuthInfo("Popup blocked/closed. Falling back to redirect…");
+          try {
+            await signInWithRedirect(auth, googleProvider);
+          } catch (e2) {
+            showAuthError(e2, "Google login failed");
+          }
+          return;
+        }
         showAuthError(err, "Google login failed");
       }
     }
@@ -767,7 +729,6 @@
         showAuthError({ code: "missing-email", message: "Enter your email above, then tap “Forgot password?”" }, "Password reset");
         return;
       }
-
       try {
         await sendPasswordResetEmail(auth, email);
         showAuthSuccess("Password reset email sent. Check your inbox (and spam/junk).");
@@ -785,12 +746,8 @@
       }
     }
 
-    // ===========================
-    // Auth state
-    // ===========================
+    // ---- Auth state
     onAuthStateChanged(auth, async (user) => {
-      console.log("onAuthStateChanged user:", user);
-
       const status = document.getElementById("authStatus");
       const googleBtn = document.getElementById("googleLoginBtn");
       const appleBtn = document.getElementById("appleLoginBtn");
@@ -832,9 +789,7 @@
       }
     });
 
-    // ===========================
-    // Event listeners
-    // ===========================
+    // ---- Event listeners
     document.getElementById("googleLoginBtn").addEventListener("click", handleGoogleLogin);
     document.getElementById("appleLoginBtn").addEventListener("click", handleAppleLogin);
     document.getElementById("emailToggleBtn").addEventListener("click", toggleEmailAuthSection);
@@ -851,6 +806,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
